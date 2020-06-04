@@ -9,8 +9,17 @@ using System.Linq;
 
 namespace AppsettingsDiff
 {
+    /// <summary>
+    /// Provides methods for reading YAML configuration files.
+    /// </summary>
     public static class YamlConfigReader
     {
+        /// <summary>
+        /// Reads a YAML configuration file from the specified path.
+        /// </summary>
+        /// <param name="path">The path to the YAML file.</param>
+        /// <returns>A dictionary representing the YAML configuration.</returns>
+        /// <exception cref="FileNotFoundException">Thrown if the YAML file is not found.</exception>
         public static Dictionary<string, string> ReadFile(string path)
         {
             if (!File.Exists(path))
@@ -19,6 +28,11 @@ namespace AppsettingsDiff
             return Parse(File.ReadAllText(path));
         }
 
+        /// <summary>
+        /// Parses a YAML configuration string into a dictionary.
+        /// </summary>
+        /// <param name="yamlContent">The YAML configuration string.</param>
+        /// <returns>A dictionary representing the YAML configuration.</returns>
         public static Dictionary<string, string> Parse(string yamlContent)
         {
             var lines = yamlContent.Split('\n', StringSplitOptions.None);
@@ -77,6 +91,11 @@ namespace AppsettingsDiff
             return result;
         }
 
+        /// <summary>
+        /// Calculates the indentation level of a YAML line.
+        /// </summary>
+        /// <param name="line">The YAML line.</param>
+        /// <returns>The indentation level.</returns>
         private static int GetIndentLevel(string line)
         {
             int indent = 0;
@@ -85,6 +104,11 @@ namespace AppsettingsDiff
             return indent / 2; // Assume 2 spaces per indent level
         }
 
+        /// <summary>
+        /// Builds a full key path from a stack of keys.
+        /// </summary>
+        /// <param name="stack">The stack of keys.</param>
+        /// <returns>The full key path.</returns>
         private static string BuildKey(Stack<string> stack)
         {
             return string.Join(":", stack.Select(s => s.Replace(":", "\\:")));
