@@ -6,11 +6,26 @@ using System.Text.Json.Serialization;
 
 namespace AppsettingsDiff
 {
+    /// <summary>
+    /// Represents a configuration schema.
+    /// </summary>
     public class ConfigSchema
     {
+        /// <summary>
+        /// Gets the list of required keys in the schema.
+        /// </summary>
         public List<string> RequiredKeys { get; set; } = new List<string>();
+
+        /// <summary>
+        /// Gets the dictionary of type hints for keys in the schema.
+        /// </summary>
         public Dictionary<string, string> TypeHints { get; set; } = new Dictionary<string, string>();
 
+        /// <summary>
+        /// Loads a configuration schema from a JSON file.
+        /// </summary>
+        /// <param name="path">The path to the JSON file.</param>
+        /// <returns>The loaded configuration schema.</returns>
         public static ConfigSchema LoadFromJson(string path)
         {
             var json = File.ReadAllText(path);
@@ -21,8 +36,17 @@ namespace AppsettingsDiff
         }
     }
 
+    /// <summary>
+    /// Validates a configuration against a schema.
+    /// </summary>
     public class SchemaValidator
     {
+        /// <summary>
+        /// Validates a configuration against a schema and returns a list of schema violations.
+        /// </summary>
+        /// <param name="config">The configuration to validate.</param>
+        /// <param name="schema">The schema to validate against.</param>
+        /// <returns>A list of schema violations.</returns>
         public IReadOnlyList<SchemaViolation> Validate(Dictionary<string, string> config, ConfigSchema schema)
         {
             var violations = new List<SchemaViolation>();
@@ -99,10 +123,24 @@ namespace AppsettingsDiff
         }
     }
 
+    /// <summary>
+    /// Represents a schema violation.
+    /// </summary>
     public class SchemaViolation
     {
+        /// <summary>
+        /// Gets the key that is in violation.
+        /// </summary>
         public string Key { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets the message describing the violation.
+        /// </summary>
         public string Message { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets a value indicating whether the key is missing.
+        /// </summary>
         public bool IsMissing { get; set; }
     }
 }
