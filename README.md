@@ -21,7 +21,34 @@ var detector = new SensitiveKeyDetector();
 string keyToCheck = "ConnectionStrings:DefaultConnection";
 
 if (detector.IsSensitive(keyToCheck))
+{    Console.WriteLine($"The key '{keyToCheck}' is sensitive.");
+}
+```
+
+## MergeResult
+
+The `MergeResult` class stores the outcome of a three-way merge operation. It contains the resulting configuration dictionary and a list of any merge conflicts encountered, allowing developers to programmatically inspect the outcome.
+
+### Example usage:
+
+```csharp
+using AppsettingsDiff;
+
+var baseConfig = new Dictionary<string, string> { { "Key1", "BaseValue" } };
+var ours = new Dictionary<string, string> { { "Key1", "OurValue" } };
+var theirs = new Dictionary<string, string> { { "Key1", "TheirValue" } };
+
+var result = ThreeWayMerger.Merge(baseConfig, ours, theirs);
+
+// Access the merged configuration
+foreach (var kvp in result.Merged)
 {
-    Console.WriteLine($"The key '{keyToCheck}' is sensitive.");
+    Console.WriteLine($"{kvp.Key}: {kvp.Value}");
+}
+
+// Handle any conflicts
+foreach (var conflict in result.Conflicts)
+{
+    Console.WriteLine($"Conflict at {conflict.Key}: Base='{conflict.BaseValue}', Ours='{conflict.OurValue}', Theirs='{conflict.TheirValue}'");
 }
 ```
