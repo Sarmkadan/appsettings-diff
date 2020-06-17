@@ -8,6 +8,32 @@ The `ConfigSchema` class represents a configuration schema, which is used to val
 
 ### Example usage:
 
+## DiffReportWriterExtensions
+
+The `DiffReportWriterExtensions` class provides convenient extension methods for `DiffReportWriter` to facilitate the processing and reporting of configuration differences. These helpers allow for quick console output, JSON serialization, and Markdown summary generation, while also simplifying checks for the existence and volume of differences.
+
+### Example usage:
+
+```csharp
+using AppsettingsDiff;
+
+var writer = new DiffReportWriter();
+var result = /* Obtain a DiffResult from ConfigDiffer */;
+
+// Check if there are any differences
+if (writer.HasDifferences(result))
+{
+    Console.WriteLine($"Total differences found: {writer.GetTotalDifferenceCount(result)}");
+
+    // Output summary
+    writer.WriteConsoleSummary(result);
+}
+
+// Export data
+string json = writer.ToCompactJson(result);
+string markdown = writer.ToMarkdownSummary(result);
+```
+
 ## SensitiveKeyDetector
 
 The `SensitiveKeyDetector` class is used to identify configuration keys that may contain sensitive information based on a predefined set of patterns. It provides a simple method to check if a given key is considered sensitive.
