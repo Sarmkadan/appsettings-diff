@@ -59,11 +59,18 @@ public static class ThreeWayMerger
     /// <param name="ours">Our local configuration with changes.</param>
     /// <param name="theirs">Their remote configuration with changes.</param>
     /// <returns>A <see cref="MergeResult"/> containing the merged configuration and any conflicts.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="baseConfig"/>, <paramref name="ours"/> or <paramref name="theirs"/> is <see langword="null"/>.
+    /// </exception>
     public static MergeResult Merge(
         Dictionary<string, string> baseConfig,
         Dictionary<string, string> ours,
         Dictionary<string, string> theirs)
     {
+        ArgumentNullException.ThrowIfNull(baseConfig);
+        ArgumentNullException.ThrowIfNull(ours);
+        ArgumentNullException.ThrowIfNull(theirs);
+
         var merged = new Dictionary<string, string>(StringComparer.Ordinal);
         var conflicts = new List<MergeConflict>();
 
@@ -79,47 +86,40 @@ public static class ThreeWayMerger
             var ourValue = ours.TryGetValue(key, out var ov) ? ov : null;
             var theirValue = theirs.TryGetValue(key, out var tv) ? tv : null;
 
-            // Determine the merge strategy based on the changes
+            // Determine the merge strategy based on the changes.
+            // A null value means the key is absent on that side, so a null
+            // winner keeps the key out of the merged dictionary (deletion).
             if (baseValue == ourValue && ourValue == theirValue)
             {
                 // All three are the same - no change
-                merged[key] = ourValue ?? string.Empty;
+                if (ourValue is not null)
+                    merged[key] = ourValue;
             }
-            else if (baseValue == ourValue && ourValue != theirValue)
+            else if (baseValue == ourValue)
             {
-                // Only theirs changed - take their value
-                merged[key] = theirValue ?? string.Empty;
+                // Only theirs changed (modified, added or deleted) - take their side
+                if (theirValue is not null)
+                    merged[key] = theirValue;
             }
-            else if (baseValue == theirValue && theirValue != ourValue)
+            else if (baseValue == theirValue)
             {
-                // Only ours changed - take our value
-                merged[key] = ourValue ?? string.Empty;
+                // Only ours changed (modified, added or deleted) - take our side
+                if (ourValue is not null)
+                    merged[key] = ourValue;
             }
             else if (ourValue == theirValue)
             {
-                // Both ours and theirs changed to the same value - take that value
-                merged[key] = ourValue ?? string.Empty;
-            }
-            else if (baseValue != null && ourValue == null && theirValue == null)
-            {
-                // Key removed in both ours and theirs - don't include in merged
-                // (key was present in base but removed from both sides)
-            }
-            else if (baseValue == null && ourValue != null && theirValue == null)
-            {
-                // Only added in ours - take our value
-                merged[key] = ourValue;
-            }
-            else if (baseValue == null && ourValue == null && theirValue != null)
-            {
-                // Only added in theirs - take their value
-                merged[key] = theirValue;
+                // Both sides made the same change (including both deleting the key)
+                if (ourValue is not null)
+                    merged[key] = ourValue;
             }
             else
             {
-                // Conflict: both sides changed the key differently
-                // Add to merged with our value (prefer ours in case of conflict)
-                merged[key] = ourValue ?? string.Empty;
+                // Conflict: both sides changed the key differently.
+                // Prefer our side; if ours deleted the key, the key stays deleted.
+                if (ourValue is not null)
+                    merged[key] = ourValue;
+
                 conflicts.Add(new MergeConflict
                 {
                     Key = key,

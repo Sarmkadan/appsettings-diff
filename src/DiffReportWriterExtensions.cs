@@ -103,8 +103,8 @@ public static class DiffReportWriterExtensions
 
         sb.AppendLine($"### Configuration Diff Summary");
         sb.AppendLine();
-        sb.AppendLine("| Metric | Count ||");
-        sb.AppendLine("|--------|-------||");
+        sb.AppendLine("| Metric | Count |");
+        sb.AppendLine("|--------|-------|");
         sb.AppendLine($"| **Total Changes** | {result.Entries.Count} |");
         sb.AppendLine($"| **Added** | {result.CountOf(DiffKind.Added)} |");
         sb.AppendLine($"| **Removed** | {result.CountOf(DiffKind.Removed)} |");

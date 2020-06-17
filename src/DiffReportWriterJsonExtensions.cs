@@ -1,5 +1,4 @@
 using System;
-using System.Reflection;
 using System.Text.Json;
 
 namespace AppsettingsDiff;
@@ -28,12 +27,7 @@ public static class DiffReportWriterJsonExtensions
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(result);
 
-        var options = new JsonSerializerOptions(_jsonOptions)
-        {
-            WriteIndented = indented
-        };
-
-        return writer.ToJson(result);
+        return writer.ToJson(result, indented);
     }
 
     /// <summary>
@@ -62,29 +56,31 @@ public static class DiffReportWriterJsonExtensions
                 return null;
             }
 
-            var entries = new List<DiffEntry>();
-            if (result.Entries != null)
-            {
-                entries.AddRange(result.Entries.Select(e => new DiffEntry
-                {
-                    Kind = Enum.TryParse<DiffKind>(e.Kind ?? string.Empty, out var kind) ? kind : DiffKind.Changed,
-                    Key = e.Key ?? string.Empty,
-                    OldValue = showSecrets ? e.OldValue : "[REDACTED]",
-                    NewValue = showSecrets ? e.NewValue : "[REDACTED]",
-                    Path = e.Path,
-                    IsSensitive = e.IsSensitive
-                }));
-            }
-
             var diffResult = new DiffResult
             {
                 BasePath = result.BasePath ?? string.Empty,
                 TargetPath = result.TargetPath ?? string.Empty
             };
 
-            // Use reflection to set the read-only Entries property
-            var entriesProperty = typeof(DiffResult).GetProperty("Entries", BindingFlags.Public | BindingFlags.Instance);
-            entriesProperty?.SetValue(diffResult, entries);
+            if (result.Entries != null)
+            {
+                foreach (var e in result.Entries)
+                {
+                    var key = e.Key ?? string.Empty;
+                    var isSensitive = e.IsSensitive || detector.IsSensitive(key);
+                    var redact = isSensitive && !showSecrets;
+
+                    diffResult.Entries.Add(new DiffEntry
+                    {
+                        Kind = Enum.TryParse<DiffKind>(e.Kind ?? string.Empty, out var kind) ? kind : DiffKind.Changed,
+                        Key = key,
+                        OldValue = redact && e.OldValue is not null ? "[REDACTED]" : e.OldValue,
+                        NewValue = redact && e.NewValue is not null ? "[REDACTED]" : e.NewValue,
+                        Path = e.Path,
+                        IsSensitive = isSensitive
+                    });
+                }
+            }
 
             return diffResult;
         }

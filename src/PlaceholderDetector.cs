@@ -5,6 +5,15 @@ namespace AppsettingsDiff;
 /// </summary>
 public sealed class PlaceholderDetector
 {
+    private static readonly string[] DefaultPatterns =
+    [
+        "TODO",
+        "changeme",
+        "your-",
+        "xxx",
+        "localhost"
+    ];
+
     private readonly IReadOnlyList<string> _patterns;
 
     /// <summary>
@@ -13,30 +22,40 @@ public sealed class PlaceholderDetector
     /// <param name="extraPatterns">Optional additional patterns to match as placeholders.</param>
     public PlaceholderDetector(IEnumerable<string>? extraPatterns = null)
     {
-        var patterns = new List<string>
-        {
-            "TODO",
-            "changeme",
-            "your-",
-            "xxx",
-            "localhost"
-        };
+        var patterns = new List<string>(DefaultPatterns);
+        var seen = new HashSet<string>(DefaultPatterns, StringComparer.OrdinalIgnoreCase);
 
         if (extraPatterns != null)
         {
-            patterns.AddRange(extraPatterns);
+            foreach (var pattern in extraPatterns)
+            {
+                if (!string.IsNullOrWhiteSpace(pattern) && seen.Add(pattern))
+                {
+                    patterns.Add(pattern);
+                }
+            }
         }
 
         _patterns = patterns.AsReadOnly();
     }
 
     /// <summary>
-    /// Scans configuration dictionary for placeholder values.
+    /// Gets the full list of patterns this detector matches against,
+    /// including the built-in defaults and any extra patterns supplied at construction.
+    /// </summary>
+    public IReadOnlyList<string> Patterns => _patterns;
+
+    /// <summary>
+    /// Scans configuration dictionary for placeholder values,
+    /// matching both the built-in patterns and any extra patterns supplied at construction.
     /// </summary>
     /// <param name="config">Configuration dictionary to scan.</param>
     /// <returns>List of placeholder findings.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="config"/> is <see langword="null"/>.</exception>
     public IReadOnlyList<PlaceholderFinding> Scan(Dictionary<string, string> config)
     {
+        ArgumentNullException.ThrowIfNull(config);
+
         var findings = new List<PlaceholderFinding>();
 
         foreach (var (key, value) in config)
@@ -45,9 +64,28 @@ public sealed class PlaceholderDetector
             {
                 findings.Add(new PlaceholderFinding(key, value, DetermineReason(value)));
             }
+            else if (TryMatchExtraPattern(value, out var pattern))
+            {
+                findings.Add(new PlaceholderFinding(key, value, $"Matches custom pattern '{pattern}'"));
+            }
         }
 
         return findings.AsReadOnly();
+    }
+
+    private bool TryMatchExtraPattern(string value, out string? pattern)
+    {
+        for (int i = DefaultPatterns.Length; i < _patterns.Count; i++)
+        {
+            if (value.Contains(_patterns[i], StringComparison.OrdinalIgnoreCase))
+            {
+                pattern = _patterns[i];
+                return true;
+            }
+        }
+
+        pattern = null;
+        return false;
     }
 
     /// <summary>
@@ -80,13 +118,7 @@ public sealed class PlaceholderDetector
         }
 
         // Check for localhost in production-like contexts
-        if (normalized.Equals("localhost", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        // Check against custom patterns
-        return false;
+        return normalized.Equals("localhost", StringComparison.OrdinalIgnoreCase);
     }
 
     private string DetermineReason(string value)

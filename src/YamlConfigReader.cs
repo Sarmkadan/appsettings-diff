@@ -30,15 +30,20 @@ namespace AppsettingsDiff
 
         /// <summary>
         /// Parses a YAML configuration string into a dictionary.
+        /// Nested mappings are flattened to "Section:Key" paths and list items to "Key[index]".
         /// </summary>
         /// <param name="yamlContent">The YAML configuration string.</param>
         /// <returns>A dictionary representing the YAML configuration.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="yamlContent"/> is <see langword="null"/>.</exception>
+        /// <exception cref="NotSupportedException">Thrown if the YAML uses anchors, aliases or block scalars.</exception>
+        /// <exception cref="FormatException">Thrown if a non-empty line is neither a mapping nor a list item.</exception>
         public static Dictionary<string, string> Parse(string yamlContent)
         {
+            ArgumentNullException.ThrowIfNull(yamlContent);
+
             var lines = yamlContent.Split('\n', StringSplitOptions.None);
             var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var stack = new Stack<string>();
-            string? currentKey = null;
+            var path = new List<string>();
             int listIndex = -1;
 
             for (int i = 0; i < lines.Length; i++)
@@ -50,45 +55,84 @@ namespace AppsettingsDiff
                 int indent = GetIndentLevel(line);
                 string content = line.TrimStart();
 
-                // Handle anchors/multiline
-                if (content.Contains("&") || content.Contains("|") || content.Contains(">"))
-                    throw new NotSupportedException("Anchors and multiline strings are not supported");
-
-                // Adjust stack based on indentation level
-                while (stack.Count > indent)
-                    stack.Pop();
-
-                if (content.StartsWith('-'))
+                if (content == "-" || content.StartsWith("- ", StringComparison.Ordinal))
                 {
-                    // List item
+                    // List item: may sit at the parent key's indent or one level deeper,
+                    // so keep the key at depth indent + 1 as the parent.
+                    if (path.Count > indent + 1)
+                        path.RemoveRange(indent + 1, path.Count - indent - 1);
+
                     listIndex++;
-                    string parentKey = BuildKey(stack);
+                    string parentKey = BuildKey(path);
                     string key = $"{parentKey}[{listIndex}]";
-                    string value = content.Substring(2).TrimStart();
-                    result.Add(key, value);
+                    string value = NormalizeValue(content.Length > 1 ? content[1..].TrimStart() : string.Empty);
+
+                    RemoveSectionEntry(result, parentKey);
+                    result[key] = value;
                 }
                 else
                 {
-                    // Key-value pair
+                    // Key-value pair: drop path segments that belong to deeper or sibling branches
+                    if (path.Count > indent)
+                        path.RemoveRange(indent, path.Count - indent);
+
                     int colonIndex = content.IndexOf(':');
                     if (colonIndex == -1)
                         throw new FormatException($"Invalid YAML line: {line}");
 
                     string key = content.Substring(0, colonIndex).Trim();
-                    string value = content.Substring(colonIndex + 1).Trim();
+                    string value = NormalizeValue(content.Substring(colonIndex + 1).Trim());
 
-                    // Build full key path
-                    var newStack = new Stack<string>(stack);
-                    newStack.Push(key);
-                    string fullKey = BuildKey(newStack);
-                    
-                    result[fullKey] = value;
-                    stack = newStack;
+                    RemoveSectionEntry(result, BuildKey(path));
+
+                    path.Add(key);
+                    result[BuildKey(path)] = value;
                     listIndex = -1;
                 }
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Strips a trailing inline comment and matching surrounding quotes from a scalar value.
+        /// </summary>
+        /// <param name="value">The raw scalar value.</param>
+        /// <returns>The normalized scalar value.</returns>
+        /// <exception cref="NotSupportedException">Thrown if the value is an anchor, alias or block scalar.</exception>
+        private static string NormalizeValue(string value)
+        {
+            if (value.Length == 0)
+                return value;
+
+            if (value[0] is '&' or '*' or '|' or '>')
+                throw new NotSupportedException("Anchors, aliases and block scalars are not supported");
+
+            if (value.Length >= 2 &&
+                ((value[0] == '"' && value[^1] == '"') || (value[0] == '\'' && value[^1] == '\'')))
+            {
+                return value[1..^1];
+            }
+
+            int commentIndex = value.IndexOf(" #", StringComparison.Ordinal);
+            if (commentIndex >= 0)
+                value = value[..commentIndex].TrimEnd();
+
+            return value;
+        }
+
+        /// <summary>
+        /// Removes a previously recorded empty entry for a key that turned out to be a section
+        /// (a parent of nested keys or list items), matching how JSON configuration is flattened.
+        /// </summary>
+        private static void RemoveSectionEntry(Dictionary<string, string> result, string parentKey)
+        {
+            if (parentKey.Length > 0 &&
+                result.TryGetValue(parentKey, out var existing) &&
+                existing.Length == 0)
+            {
+                result.Remove(parentKey);
+            }
         }
 
         /// <summary>
@@ -105,13 +149,13 @@ namespace AppsettingsDiff
         }
 
         /// <summary>
-        /// Builds a full key path from a stack of keys.
+        /// Builds a full key path from an ordered list of segments (outermost first).
         /// </summary>
-        /// <param name="stack">The stack of keys.</param>
+        /// <param name="path">The key segments, outermost first.</param>
         /// <returns>The full key path.</returns>
-        private static string BuildKey(Stack<string> stack)
+        private static string BuildKey(List<string> path)
         {
-            return string.Join(":", stack.Select(s => s.Replace(":", "\\:")));
+            return string.Join(":", path.Select(s => s.Replace(":", "\\:")));
         }
     }
 }

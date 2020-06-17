@@ -14,9 +14,17 @@ public sealed class DiffReportWriter
     private readonly SensitiveKeyDetector _detector;
     private readonly bool _showSecrets;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DiffReportWriter"/> class.
+    /// </summary>
+    /// <param name="detector">Detector used to identify sensitive keys.</param>
+    /// <param name="showSecrets">When <see langword="true"/>, sensitive values are written verbatim instead of redacted.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="detector"/> is <see langword="null"/>.</exception>
     public DiffReportWriter(SensitiveKeyDetector detector, bool showSecrets = false)
     {
-        _detector = detector ?? throw new ArgumentNullException(nameof(detector));
+        ArgumentNullException.ThrowIfNull(detector);
+
+        _detector = detector;
         _showSecrets = showSecrets;
     }
 
@@ -67,9 +75,17 @@ public sealed class DiffReportWriter
     /// Serialises the diff result to indented JSON.
     /// Sensitive values are redacted unless <c>showSecrets</c> is true.
     /// </summary>
-    public string ToJson(DiffResult result)
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="result"/> is <see langword="null"/>.</exception>
+    public string ToJson(DiffResult result) => ToJson(result, indented: true);
+
+    /// <summary>
+    /// Serialises the diff result to JSON, indented or compact.
+    /// Sensitive values are redacted unless <c>showSecrets</c> is true.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="result"/> is <see langword="null"/>.</exception>
+    public string ToJson(DiffResult result, bool indented)
     {
-        if (result == null) throw new ArgumentNullException(nameof(result));
+        ArgumentNullException.ThrowIfNull(result);
 
         var serialisable = new
         {
@@ -88,7 +104,7 @@ public sealed class DiffReportWriter
 
         var options = new JsonSerializerOptions
         {
-            WriteIndented = true
+            WriteIndented = indented
         };
 
         return JsonSerializer.Serialize(serialisable, options);

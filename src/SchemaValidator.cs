@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -26,8 +27,13 @@ namespace AppsettingsDiff
         /// </summary>
         /// <param name="path">The path to the JSON file.</param>
         /// <returns>The loaded configuration schema.</returns>
+        /// <exception cref="ArgumentException">Thrown when <paramref name="path"/> is null or whitespace.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the file deserializes to a null schema.</exception>
+        /// <exception cref="JsonException">Thrown when the file is not valid JSON.</exception>
         public static ConfigSchema LoadFromJson(string path)
         {
+            ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
             var json = File.ReadAllText(path);
             return JsonSerializer.Deserialize<ConfigSchema>(json, new JsonSerializerOptions
             {
@@ -47,8 +53,14 @@ namespace AppsettingsDiff
         /// <param name="config">The configuration to validate.</param>
         /// <param name="schema">The schema to validate against.</param>
         /// <returns>A list of schema violations.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="config"/> or <paramref name="schema"/> is <see langword="null"/>.
+        /// </exception>
         public IReadOnlyList<SchemaViolation> Validate(Dictionary<string, string> config, ConfigSchema schema)
         {
+            ArgumentNullException.ThrowIfNull(config);
+            ArgumentNullException.ThrowIfNull(schema);
+
             var violations = new List<SchemaViolation>();
 
             foreach (var key in schema.RequiredKeys)
@@ -70,10 +82,12 @@ namespace AppsettingsDiff
                     var isValid = true;
                     string errorMessage = "";
 
-                    switch (typeHint.ToLower())
+                    switch (typeHint.Trim().ToLowerInvariant())
                     {
+                        case "string":
+                            break;
                         case "int":
-                            if (!int.TryParse(value, out _))
+                            if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
                             {
                                 isValid = false;
                                 errorMessage = "Value must be a valid integer";
@@ -84,6 +98,20 @@ namespace AppsettingsDiff
                             {
                                 isValid = false;
                                 errorMessage = "Value must be a valid boolean";
+                            }
+                            break;
+                        case "double":
+                            if (!double.TryParse(value, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out _))
+                            {
+                                isValid = false;
+                                errorMessage = "Value must be a valid double";
+                            }
+                            break;
+                        case "datetime":
+                            if (!DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _))
+                            {
+                                isValid = false;
+                                errorMessage = "Value must be a valid DateTime";
                             }
                             break;
                         case "url":
