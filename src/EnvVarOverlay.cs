@@ -30,12 +30,15 @@ public static class EnvVarOverlay
     }
 
     /// <summary>
-    /// Нормализует переменные окружения: заменяет '__' на ':', удаляет указанный префикс.
+    /// Нормализует переменные окружения: заменяет '__' на ':', удаляет префиксы ASPNETCORE_ и DOTNET_.
     /// </summary>
     /// <param name="envVars">Исходные переменные окружения.</param>
     /// <returns>Нормализованные переменные.</returns>
+    /// <exception cref="ArgumentNullException">Если <paramref name="envVars"/> равен <see langword="null"/>.</exception>
     public static Dictionary<string, string> Normalize(IDictionary<string, string> envVars)
     {
+        ArgumentNullException.ThrowIfNull(envVars);
+
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var entry in envVars)
@@ -69,8 +72,12 @@ public static class EnvVarOverlay
     /// <param name="envVars">Переменные окружения для наложения.</param>
     /// <param name="overriddenKeys">Список ключей, которые были перекрыты (выходной параметр).</param>
     /// <returns>Новая конфигурация с применёнными переменными окружения.</returns>
+    /// <exception cref="ArgumentNullException">Если <paramref name="config"/> или <paramref name="envVars"/> равен <see langword="null"/>.</exception>
     public static Dictionary<string, string> Apply(Dictionary<string, string> config, IDictionary<string, string> envVars, out List<string> overriddenKeys)
     {
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentNullException.ThrowIfNull(envVars);
+
         overriddenKeys = [];
         var result = new Dictionary<string, string>(config, StringComparer.OrdinalIgnoreCase);
 
