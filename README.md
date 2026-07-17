@@ -51,6 +51,56 @@ if (detector.IsSensitive(keyToCheck))
 }
 ```
 
+## MergeResultExtensions
+
+The `MergeResultExtensions` class provides a collection of extension methods for `MergeResult` that simplify common operations like retrieving values with type conversion, checking for key existence, and managing merge conflicts. These helpers allow for concise and readable code when working with merge results, supporting string, integer, boolean, and decimal value retrieval with automatic type conversion and fallback to default values.
+
+### Example usage:
+
+```csharp
+using AppsettingsDiff;
+
+var baseConfig = new Dictionary<string, string> { { "Timeout", "30" }, { "Enabled", "true" }, { "Rate", "99.5" } };
+var ours = new Dictionary<string, string> { { "Timeout", "60" }, { "Enabled", "false" } };
+var theirs = new Dictionary<string, string> { { "Timeout", "45" }, { "Rate", "120.75" } };
+
+var result = ThreeWayMerger.Merge(baseConfig, ours, theirs);
+
+// Get values with type conversion and defaults
+int timeout = result.GetValueOrDefaultAsInt("Timeout", 10);
+bool enabled = result.GetValueOrDefaultAsBool("Enabled", true);
+decimal rate = result.GetValueOrDefaultAsDecimal("Rate", 0m);
+string missingKey = result.GetValueOrDefault("NonExistentKey", "default");
+
+// Check key existence and count
+bool hasTimeout = result.ContainsKey("Timeout");
+int keyCount = result.Count();
+IEnumerable<string> allKeys = result.GetKeys();
+
+// Try to get a value
+if (result.TryGetValue("Timeout", out var timeoutValue))
+{
+Console.WriteLine($"Timeout value: {timeoutValue}");
+}
+
+// Work with conflicts
+if (result.HasConflicts())
+{
+Console.WriteLine($"Merge conflicts found: {result.GetConflictedKeys().Count}");
+
+foreach (var conflictedKey in result.GetConflictedKeys())
+{
+var conflict = result.GetConflict(conflictedKey);
+if (conflict != null)
+{
+Console.WriteLine($"Conflict at {conflict.Key}: Base='{conflict.BaseValue}', Ours='{conflict.OurValue}', Theirs='{conflict.TheirValue}'");
+}
+}
+
+IReadOnlyList<MergeConflict> allConflicts = result.GetConflicts();
+}
+```
+
 ## SensitiveKeyDetectorExtensions
 
 `SensitiveKeyDetectorExtensions` adds a collection of helpful extension methods that build on `SensitiveKeyDetector` to evaluate keys for sensitivity, categorize them, and decide whether they need special handling. These methods let you quickly determine if a key is sensitive, potentially sensitive, related to databases or APIs, its overall sensitivity level, and whether extra caution is warranted.
