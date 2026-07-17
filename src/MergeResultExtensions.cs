@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 
 namespace AppsettingsDiff;
 
@@ -137,10 +138,7 @@ public static class MergeResultExtensions
     /// <returns>The number of keys in the merged configuration.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="result"/> is <see langword="null"/>.</exception>
     public static int Count(this MergeResult result)
-    {
-        ArgumentNullException.ThrowIfNull(result);
-        return result.Merged.Count;
-    }
+        => result.Merged.Count;
 
     /// <summary>
     /// Gets an enumerable of all keys in the merged configuration.
@@ -149,10 +147,7 @@ public static class MergeResultExtensions
     /// <returns>An enumerable of all keys in the merged configuration.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="result"/> is <see langword="null"/>.</exception>
     public static IEnumerable<string> GetKeys(this MergeResult result)
-    {
-        ArgumentNullException.ThrowIfNull(result);
-        return result.Merged.Keys;
-    }
+        => result.Merged.Keys;
 
     /// <summary>
     /// Attempts to get the merged value for the specified key.
@@ -178,10 +173,7 @@ public static class MergeResultExtensions
     /// <returns>A read-only list of all conflicts encountered during the merge.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="result"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<MergeConflict> GetConflicts(this MergeResult result)
-    {
-        ArgumentNullException.ThrowIfNull(result);
-        return result.Conflicts;
-    }
+        => result.Conflicts;
 
     /// <summary>
     /// Determines whether the merge result has any conflicts.
@@ -190,10 +182,7 @@ public static class MergeResultExtensions
     /// <returns><see langword="true"/> if the merge result has one or more conflicts; otherwise, <see langword="false"/>.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="result"/> is <see langword="null"/>.</exception>
     public static bool HasConflicts(this MergeResult result)
-    {
-        ArgumentNullException.ThrowIfNull(result);
-        return result.Conflicts.Count > 0;
-    }
+        => result.Conflicts.Count > 0;
 
     /// <summary>
     /// Gets the first conflict with the specified key, if any.
@@ -218,8 +207,5 @@ public static class MergeResultExtensions
     /// <returns>A read-only list of all keys that have conflicts.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="result"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> GetConflictedKeys(this MergeResult result)
-    {
-        ArgumentNullException.ThrowIfNull(result);
-        return result.Conflicts.Select(c => c.Key).ToList().AsReadOnly();
-    }
+        => result.Conflicts.Select(c => c.Key).ToList().AsReadOnly();
 }
