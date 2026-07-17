@@ -51,6 +51,31 @@ if (detector.IsSensitive(keyToCheck))
 }
 ```
 
+## SensitiveKeyDetectorExtensions
+
+`SensitiveKeyDetectorExtensions` adds a collection of helpful extension methods that build on `SensitiveKeyDetector` to evaluate keys for sensitivity, categorize them, and decide whether they need special handling. These methods let you quickly determine if a key is sensitive, potentially sensitive, related to databases or APIs, its overall sensitivity level, and whether extra caution is warranted.
+
+### Example usage:
+
+```csharp
+using AppsettingsDiff;
+
+var detector = new SensitiveKeyDetector();
+
+string[] keys = { "ConnectionStrings:Default", "ApiKey", "DbPassword", "Logging:LogLevel" };
+
+foreach (var key in keys)
+{
+    Console.WriteLine($"{key}:");
+    Console.WriteLine($"  Sensitive? {detector.IsSensitiveKey(key)}");
+    Console.WriteLine($"  Potentially Sensitive? {detector.IsPotentiallySensitive(key)}");
+    Console.WriteLine($"  Database Credential? {detector.IsDatabaseCredential(key)}");
+    Console.WriteLine($"  API Credential? {detector.IsApiCredential(key)}");
+    Console.WriteLine($"  Sensitivity Level: {detector.GetSensitivityLevel(key)}");
+    Console.WriteLine($"  Requires Extra Caution? {detector.RequiresExtraCaution(key)}");
+}
+```
+
 ## MergeResult
 
 The `MergeResult` class stores the outcome of a three-way merge operation. It contains the resulting configuration dictionary and a list of any merge conflicts encountered, allowing developers to programmatically inspect the outcome.
