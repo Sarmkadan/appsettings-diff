@@ -126,6 +126,49 @@ foreach (var key in keys)
 }
 ```
 
+## DiffReportWriterJsonExtensions
+
+`DiffReportWriterJsonExtensions` adds JSON‑serialization helpers for `DiffReportWriter`. It lets you convert a `DiffResult` to a JSON string (optionally indented) and back again, while handling redaction of sensitive values based on a `SensitiveKeyDetector`. The extension also provides a `TryFromJson` method that safely attempts deserialization.
+
+### Example usage:
+
+```csharp
+using AppsettingsDiff;
+
+var writer   = new DiffReportWriter();
+var detector = new SensitiveKeyDetector();
+
+// Assume we have a DiffResult from ConfigDiffer
+DiffResult result = /* obtain DiffResult */;
+
+// Serialize the result to indented JSON
+string json = writer.ToJson(result, indented: true);
+
+// Deserialize, redacting sensitive values unless we explicitly request them
+DiffResult? deserialized = DiffReportWriterJsonExtensions.FromJson(json, detector, showSecrets: false);
+
+if (deserialized != null)
+{
+    Console.WriteLine($"BasePath:   {deserialized.BasePath}");
+    Console.WriteLine($"TargetPath: {deserialized.TargetPath}");
+
+    foreach (var entry in deserialized.Entries)
+    {
+        Console.WriteLine($"{entry.Kind}: {entry.Key}");
+        Console.WriteLine($"  Old: {entry.OldValue}");
+        Console.WriteLine($"  New: {entry.NewValue}");
+        Console.WriteLine($"  Sensitive: {entry.IsSensitive}");
+    }
+}
+
+// Safe try‑parse variant
+if (DiffReportWriterJsonExtensions.TryFromJson(json, detector, out var parsed, showSecrets: true))
+{
+    // `parsed` is a fully populated DiffResult
+    Console.WriteLine($"Parsed {parsed.Entries.Count} entries successfully.");
+}
+```
+
 ## MergeResult
 
 The `MergeResult` class stores the outcome of a three-way merge operation. It contains the resulting configuration dictionary and a list of any merge conflicts encountered, allowing developers to programmatically inspect the outcome.
