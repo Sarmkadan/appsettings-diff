@@ -1,6 +1,44 @@
 # appsettings-diff
 
-Diffs appsettings across environments and finds keys missing between them.
+Diff appsettings across environments and finds keys missing between them.
+
+## DiffReportWriter
+
+The `DiffReportWriter` class generates human-readable reports from configuration diff results. It supports console output with color coding, JSON serialization, and Markdown table generation. Sensitive values are automatically redacted unless explicitly configured otherwise.
+
+### Public Members
+- `DiffReportWriter(SensitiveKeyDetector detector, bool showSecrets = false)` - Constructor
+- `void WriteConsole(DiffResult result)` - Writes a color-coded console table
+- `string ToJson(DiffResult result)` - Serializes to indented JSON
+- `string ToJson(DiffResult result, bool indented)` - Serializes to JSON with formatting control
+- `string ToMarkdown(DiffResult result)` - Generates a Markdown table
+
+### Example usage:
+
+```csharp
+using AppsettingsDiff;
+
+// Create a sensitive key detector and writer
+var detector = new SensitiveKeyDetector();
+var writer = new DiffReportWriter(detector);
+
+// Assume we have a DiffResult from ConfigDiffer
+DiffResult result = /* obtain DiffResult */;
+
+// Write to console with color coding
+writer.WriteConsole(result);
+
+// Export as JSON
+string json = writer.ToJson(result);
+Console.WriteLine(json);
+
+// Export as Markdown (suitable for PR comments)
+string markdown = writer.ToMarkdown(result);
+Console.WriteLine(markdown);
+
+// Export compact JSON
+string compactJson = writer.ToJson(result, indented: false);
+```
 
 ## ConfigSchema
 
@@ -23,10 +61,10 @@ var result = /* Obtain a DiffResult from ConfigDiffer */;
 // Check if there are any differences
 if (writer.HasDifferences(result))
 {
-    Console.WriteLine($"Total differences found: {writer.GetTotalDifferenceCount(result)}");
+Console.WriteLine($"Total differences found: {writer.GetTotalDifferenceCount(result)}");
 
-    // Output summary
-    writer.WriteConsoleSummary(result);
+// Output summary
+writer.WriteConsoleSummary(result);
 }
 
 // Export data
@@ -47,7 +85,8 @@ var detector = new SensitiveKeyDetector();
 string keyToCheck = "ConnectionStrings:DefaultConnection";
 
 if (detector.IsSensitive(keyToCheck))
-{    Console.WriteLine($"The key '{keyToCheck}' is sensitive.");
+{
+ Console.WriteLine($"The key '{keyToCheck}' is sensitive.");
 }
 ```
 
@@ -80,24 +119,24 @@ IEnumerable<string> allKeys = result.GetKeys();
 // Try to get a value
 if (result.TryGetValue("Timeout", out var timeoutValue))
 {
-Console.WriteLine($"Timeout value: {timeoutValue}");
+ Console.WriteLine($"Timeout value: {timeoutValue}");
 }
 
 // Work with conflicts
 if (result.HasConflicts())
 {
-Console.WriteLine($"Merge conflicts found: {result.GetConflictedKeys().Count}");
+ Console.WriteLine($"Merge conflicts found: {result.GetConflictedKeys().Count}");
 
-foreach (var conflictedKey in result.GetConflictedKeys())
-{
-var conflict = result.GetConflict(conflictedKey);
-if (conflict != null)
-{
-Console.WriteLine($"Conflict at {conflict.Key}: Base='{conflict.BaseValue}', Ours='{conflict.OurValue}', Theirs='{conflict.TheirValue}'");
-}
-}
+ foreach (var conflictedKey in result.GetConflictedKeys())
+ {
+ var conflict = result.GetConflict(conflictedKey);
+ if (conflict != null)
+ {
+ Console.WriteLine($"Conflict at {conflict.Key}: Base='{conflict.BaseValue}', Ours='{conflict.OurValue}', Theirs='{conflict.TheirValue}'");
+ }
+ }
 
-IReadOnlyList<MergeConflict> allConflicts = result.GetConflicts();
+ IReadOnlyList<MergeConflict> allConflicts = result.GetConflicts();
 }
 ```
 
@@ -116,13 +155,13 @@ string[] keys = { "ConnectionStrings:Default", "ApiKey", "DbPassword", "Logging:
 
 foreach (var key in keys)
 {
-    Console.WriteLine($"{key}:");
-    Console.WriteLine($"  Sensitive? {detector.IsSensitiveKey(key)}");
-    Console.WriteLine($"  Potentially Sensitive? {detector.IsPotentiallySensitive(key)}");
-    Console.WriteLine($"  Database Credential? {detector.IsDatabaseCredential(key)}");
-    Console.WriteLine($"  API Credential? {detector.IsApiCredential(key)}");
-    Console.WriteLine($"  Sensitivity Level: {detector.GetSensitivityLevel(key)}");
-    Console.WriteLine($"  Requires Extra Caution? {detector.RequiresExtraCaution(key)}");
+Console.WriteLine($"{key}:");
+Console.WriteLine($" Sensitive? {detector.IsSensitiveKey(key)}");
+Console.WriteLine($" Potentially Sensitive? {detector.IsPotentiallySensitive(key)}");
+Console.WriteLine($" Database Credential? {detector.IsDatabaseCredential(key)}");
+Console.WriteLine($" API Credential? {detector.IsApiCredential(key)}");
+Console.WriteLine($" Sensitivity Level: {detector.GetSensitivityLevel(key)}");
+Console.WriteLine($" Requires Extra Caution? {detector.RequiresExtraCaution(key)}");
 }
 ```
 
@@ -135,7 +174,7 @@ foreach (var key in keys)
 ```csharp
 using AppsettingsDiff;
 
-var writer   = new DiffReportWriter();
+var writer = new DiffReportWriter();
 var detector = new SensitiveKeyDetector();
 
 // Assume we have a DiffResult from ConfigDiffer
@@ -145,27 +184,27 @@ DiffResult result = /* obtain DiffResult */;
 string json = writer.ToJson(result, indented: true);
 
 // Deserialize, redacting sensitive values unless we explicitly request them
-DiffResult? deserialized = DiffReportWriterJsonExtensions.FromJson(json, detector, showSecrets: false);
+diffResult? deserialized = DiffReportWriterJsonExtensions.FromJson(json, detector, showSecrets: false);
 
 if (deserialized != null)
 {
-    Console.WriteLine($"BasePath:   {deserialized.BasePath}");
-    Console.WriteLine($"TargetPath: {deserialized.TargetPath}");
+Console.WriteLine($"BasePath: {deserialized.BasePath}");
+Console.WriteLine($"TargetPath: {deserialized.TargetPath}");
 
-    foreach (var entry in deserialized.Entries)
-    {
-        Console.WriteLine($"{entry.Kind}: {entry.Key}");
-        Console.WriteLine($"  Old: {entry.OldValue}");
-        Console.WriteLine($"  New: {entry.NewValue}");
-        Console.WriteLine($"  Sensitive: {entry.IsSensitive}");
-    }
+foreach (var entry in deserialized.Entries)
+{
+Console.WriteLine($"{entry.Kind}: {entry.Key}");
+Console.WriteLine($" Old: {entry.OldValue}");
+Console.WriteLine($" New: {entry.NewValue}");
+Console.WriteLine($" Sensitive: {entry.IsSensitive}");
+}
 }
 
 // Safe try‑parse variant
 if (DiffReportWriterJsonExtensions.TryFromJson(json, detector, out var parsed, showSecrets: true))
 {
-    // `parsed` is a fully populated DiffResult
-    Console.WriteLine($"Parsed {parsed.Entries.Count} entries successfully.");
+// `parsed` is a fully populated DiffResult
+Console.WriteLine($"Parsed {parsed.Entries.Count} entries successfully.");
 }
 ```
 
@@ -187,12 +226,12 @@ var result = ThreeWayMerger.Merge(baseConfig, ours, theirs);
 // Access the merged configuration
 foreach (var kvp in result.Merged)
 {
-    Console.WriteLine($"{kvp.Key}: {kvp.Value}");
+Console.WriteLine($"{kvp.Key}: {kvp.Value}");
 }
 
 // Handle any conflicts
 foreach (var conflict in result.Conflicts)
 {
-    Console.WriteLine($"Conflict at {conflict.Key}: Base='{conflict.BaseValue}', Ours='{conflict.OurValue}', Theirs='{conflict.TheirValue}'");
+Console.WriteLine($"Conflict at {conflict.Key}: Base='{conflict.BaseValue}', Ours='{conflict.OurValue}', Theirs='{conflict.TheirValue}'");
 }
 ```
