@@ -8,31 +8,27 @@ public static class SensitiveKeyDetectorExtensions
 {
     /// <summary>
     /// Determines whether the specified key is a sensitive key based on common patterns.
-    /// This is an alias for the existing <see cref="SensitiveKeyDetector.IsSensitive(string)"/> method.
     /// </summary>
     /// <param name="detector">The detector instance</param>
     /// <param name="key">The configuration key to check</param>
     /// <returns>True if the key is sensitive; otherwise, false</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="detector"/> is <see langword="null"/></exception>
     public static bool IsSensitiveKey(this SensitiveKeyDetector detector, string key)
     {
-        if (detector == null)
-            throw new ArgumentNullException(nameof(detector));
-
+        ArgumentNullException.ThrowIfNull(detector);
         return detector.IsSensitive(key);
     }
 
     /// <summary>
     /// Determines whether the specified key matches any of the sensitive patterns.
-    /// This method provides a more readable alias for the detector's functionality.
     /// </summary>
     /// <param name="detector">The detector instance</param>
     /// <param name="key">The configuration key to check</param>
     /// <returns>True if the key matches sensitive patterns; otherwise, false</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="detector"/> is <see langword="null"/></exception>
     public static bool IsPotentiallySensitive(this SensitiveKeyDetector detector, string key)
     {
-        if (detector == null)
-            throw new ArgumentNullException(nameof(detector));
-
+        ArgumentNullException.ThrowIfNull(detector);
         return detector.IsSensitive(key);
     }
 
@@ -43,10 +39,10 @@ public static class SensitiveKeyDetectorExtensions
     /// <param name="detector">The detector instance</param>
     /// <param name="key">The configuration key to check</param>
     /// <returns>True if the key is both sensitive and database-related; otherwise, false</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="detector"/> is <see langword="null"/></exception>
     public static bool IsDatabaseCredential(this SensitiveKeyDetector detector, string key)
     {
-        if (detector == null)
-            throw new ArgumentNullException(nameof(detector));
+        ArgumentNullException.ThrowIfNull(detector);
 
         if (string.IsNullOrWhiteSpace(key))
             return false;
@@ -65,10 +61,10 @@ public static class SensitiveKeyDetectorExtensions
     /// <param name="detector">The detector instance</param>
     /// <param name="key">The configuration key to check</param>
     /// <returns>True if the key is both sensitive and API-related; otherwise, false</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="detector"/> is <see langword="null"/></exception>
     public static bool IsApiCredential(this SensitiveKeyDetector detector, string key)
     {
-        if (detector == null)
-            throw new ArgumentNullException(nameof(detector));
+        ArgumentNullException.ThrowIfNull(detector);
 
         if (string.IsNullOrWhiteSpace(key))
             return false;
@@ -87,65 +83,40 @@ public static class SensitiveKeyDetectorExtensions
     /// <param name="detector">The detector instance</param>
     /// <param name="key">The configuration key to check</param>
     /// <returns>An integer severity level (0-5)</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="detector"/> is <see langword="null"/></exception>
+    /// <exception cref="ArgumentException"><paramref name="key"/> is <see langword="null"/> or empty</exception>
     public static int GetSensitivityLevel(this SensitiveKeyDetector detector, string key)
     {
-        if (detector == null)
-            throw new ArgumentNullException(nameof(detector));
+        ArgumentNullException.ThrowIfNull(detector);
+        ArgumentException.ThrowIfNullOrEmpty(key);
 
-        if (string.IsNullOrWhiteSpace(key))
-            return 0;
+        int level = detector.IsSensitive(key) ? 1 : 0;
 
         var lowerKey = key.ToLowerInvariant();
-        int level = 0;
+        level += lowerKey.Contains("password") || lowerKey.Contains("pwd") ? 2 :
+                lowerKey.Contains("secret") ? 2 :
+                lowerKey.Contains("token") ? 1 :
+                lowerKey.Contains("key") || lowerKey.Contains("api") ? 1 : 0;
 
-        if (detector.IsSensitive(key))
-        {
-            level += 1;
-        }
-
-        if (lowerKey.Contains("password") || lowerKey.Contains("pwd"))
-        {
-            level += 2;
-        }
-        else if (lowerKey.Contains("secret"))
-        {
-            level += 2;
-        }
-        else if (lowerKey.Contains("token"))
-        {
-            level += 1;
-        }
-        else if (lowerKey.Contains("key") || lowerKey.Contains("api"))
-        {
-            level += 1;
-        }
-
-        if (lowerKey.Contains("connectionstring"))
-        {
-            level += 2;
-        }
+        level += lowerKey.Contains("connectionstring") ? 2 : 0;
 
         return Math.Min(level, 5);
     }
 
     /// <summary>
     /// Determines if a key should be treated with extra caution based on its sensitivity.
-    /// Returns true for keys that contain "password", "secret", or "connectionstring".
+    /// Returns <see langword="true"/> for keys that contain "password", "secret", or "connectionstring".
     /// </summary>
     /// <param name="detector">The detector instance</param>
     /// <param name="key">The configuration key to check</param>
-    /// <returns>True if the key requires extra caution; otherwise, false</returns>
+    /// <returns><see langword="true"/> if the key requires extra caution; otherwise <see langword="false"/></returns>
+    /// <exception cref="ArgumentNullException"><paramref name="detector"/> is <see langword="null"/></exception>
     public static bool RequiresExtraCaution(this SensitiveKeyDetector detector, string key)
     {
-        if (detector == null)
-            throw new ArgumentNullException(nameof(detector));
-
-        if (string.IsNullOrWhiteSpace(key))
-            return false;
-
-        var lowerKey = key.ToLowerInvariant();
-        return lowerKey.Contains("password") ||
-               lowerKey.Contains("secret") ||
-               lowerKey.Contains("connectionstring");
+        ArgumentNullException.ThrowIfNull(detector);
+        return !string.IsNullOrWhiteSpace(key) &&
+               (key.Contains("password", StringComparison.OrdinalIgnoreCase) ||
+                key.Contains("secret", StringComparison.OrdinalIgnoreCase) ||
+                key.Contains("connectionstring", StringComparison.OrdinalIgnoreCase));
     }
 }
