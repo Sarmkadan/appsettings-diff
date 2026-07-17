@@ -12,7 +12,8 @@ public static class PlaceholderDetectorExtensions
     /// <param name="findings">Findings to filter.</param>
     /// <param name="pattern">Pattern to match against the reason (case-insensitive).</param>
     /// <returns>Filtered findings matching the pattern.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when detector or findings is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="detector"/> or <paramref name="findings"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="pattern"/> is null or empty.</exception>
     public static IReadOnlyList<PlaceholderFinding> FilterByPattern(
         this PlaceholderDetector detector,
         IReadOnlyList<PlaceholderFinding> findings,
@@ -22,7 +23,8 @@ public static class PlaceholderDetectorExtensions
         ArgumentNullException.ThrowIfNull(findings);
         ArgumentException.ThrowIfNullOrEmpty(pattern);
 
-        return findings.Where(f => f.Reason.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+        return findings
+            .Where(f => f.Reason.Contains(pattern, StringComparison.OrdinalIgnoreCase))
             .ToList()
             .AsReadOnly();
     }
@@ -33,7 +35,7 @@ public static class PlaceholderDetectorExtensions
     /// <param name="detector">The placeholder detector instance.</param>
     /// <param name="findings">Findings to group.</param>
     /// <returns>Dictionary mapping reasons to collections of findings.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when detector or findings is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="detector"/> or <paramref name="findings"/> is null.</exception>
     public static IReadOnlyDictionary<string, IReadOnlyList<PlaceholderFinding>> GroupByReason(
         this PlaceholderDetector detector,
         IReadOnlyList<PlaceholderFinding> findings)
@@ -56,7 +58,7 @@ public static class PlaceholderDetectorExtensions
     /// <param name="detector">The placeholder detector instance.</param>
     /// <param name="findings">Findings to check.</param>
     /// <returns>True if findings collection contains any items; otherwise false.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when detector or findings is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="detector"/> or <paramref name="findings"/> is null.</exception>
     public static bool HasAnyFindings(
         this PlaceholderDetector detector,
         IReadOnlyList<PlaceholderFinding> findings)
@@ -73,7 +75,7 @@ public static class PlaceholderDetectorExtensions
     /// <param name="detector">The placeholder detector instance.</param>
     /// <param name="findings">Findings to analyze.</param>
     /// <returns>Dictionary mapping severity levels to finding counts.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when detector or findings is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="detector"/> or <paramref name="findings"/> is null.</exception>
     public static IReadOnlyDictionary<string, int> GetFindingsCountBySeverity(
         this PlaceholderDetector detector,
         IReadOnlyList<PlaceholderFinding> findings)
