@@ -22,8 +22,8 @@ public static class Program
     /// <param name="args">Raw command-line arguments.</param>
     public static async Task<int> Main(string[] args)
     {
-        var baseArgument = new Argument<FileInfo>("base", "The base JSON/YAML file").ExistingOnly();
-        var targetArgument = new Argument<FileInfo>("target", "The target JSON/YAML file").ExistingOnly();
+        var baseArgument = new Argument<FileInfo>("base", "The base JSON/YAML file (use - to read from stdin)").ExistingOnly();
+        var targetArgument = new Argument<FileInfo>("target", "The target JSON/YAML file (use - to read from stdin)").ExistingOnly();
 
         var dirOption = new Option<DirectoryInfo>("--dir", "The directory containing configuration files").ExistingOnly();
         var envsOption = new Option<string[]>("--envs", "The environments to compare (comma-separated, e.g. Production,Staging)") { AllowMultipleArgumentsPerToken = true };
