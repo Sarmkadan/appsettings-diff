@@ -51,9 +51,10 @@ public sealed class DiffReportWriter
 
     /// <summary>
     /// Writes a colour‑coded table to the console.
-    /// Added   – green
+    /// Added – green
     /// Removed – red
     /// Changed – yellow
+    /// TypeChanged – magenta
     /// Sensitive values are redacted unless <c>showSecrets</c> is true.
     /// </summary>
     public void WriteConsole(DiffResult result)
@@ -63,7 +64,7 @@ public sealed class DiffReportWriter
         // Header
         Console.WriteLine($"Diff between \"{result.BasePath}\" and \"{result.TargetPath}\"");
         Console.WriteLine(new string('-', 80));
-        Console.WriteLine("{0,-10} {1,-40} {2,-15} {3}", "Kind", "Key", "Old Value", "New Value");
+        Console.WriteLine("{0,-15} {1,-40} {2,-15} {3}", "Kind", "Key", "Old Value", "New Value");
         Console.WriteLine(new string('-', 80));
 
         foreach (var entry in result.Entries)
@@ -73,6 +74,7 @@ public sealed class DiffReportWriter
                 DiffKind.Added => ConsoleColor.Green,
                 DiffKind.Removed => ConsoleColor.Red,
                 DiffKind.Changed => ConsoleColor.Yellow,
+                DiffKind.TypeChanged => ConsoleColor.Magenta,
                 _ => ConsoleColor.Gray
             };
 
@@ -81,8 +83,20 @@ public sealed class DiffReportWriter
 
             var originalColour = Console.ForegroundColor;
             Console.ForegroundColor = colour;
-            Console.WriteLine("{0,-10} {1,-40} {2,-15} {3}",
-                entry.Kind,
+
+            // For TypeChanged entries, show type information
+            string displayText;
+            if (entry.Kind == DiffKind.TypeChanged && entry.OldType != null && entry.NewType != null)
+            {
+                displayText = $"{entry.Kind} ({entry.OldType}→{entry.NewType}) ";
+            }
+            else
+            {
+                displayText = entry.Kind.ToString();
+            }
+
+            Console.WriteLine("{0,-15} {1,-40} {2,-15} {3}",
+                displayText,
                 Truncate(entry.Key, 40),
                 Truncate(oldVal, 15),
                 Truncate(newVal, 30));
@@ -119,7 +133,9 @@ public sealed class DiffReportWriter
                 OldValue = Redact(e.OldValue, e.IsSensitive),
                 NewValue = Redact(e.NewValue, e.IsSensitive),
                 e.Path,
-                e.IsSensitive
+                e.IsSensitive,
+                OldType = e.Kind == DiffKind.TypeChanged ? e.OldType : null,
+                NewType = e.Kind == DiffKind.TypeChanged ? e.NewType : null
             })
         };
 
@@ -145,7 +161,8 @@ public sealed class DiffReportWriter
         var added = result.CountOf(DiffKind.Added);
         var removed = result.CountOf(DiffKind.Removed);
         var changed = result.CountOf(DiffKind.Changed);
-        writer.WriteLine($"**Summary:** Added: {added}, Removed: {removed}, Changed: {changed}");
+        var typeChanged = result.CountOf(DiffKind.TypeChanged);
+        writer.WriteLine($"**Summary:** Added: {added}, Removed: {removed}, Changed: {changed}, TypeChanged: {typeChanged}");
         writer.WriteLine();
 
         // Table header
@@ -155,9 +172,22 @@ public sealed class DiffReportWriter
         foreach (var entry in result.Entries)
         {
             var key = EscapeMarkdown(entry.Key);
-            var change = EscapeMarkdown(entry.Kind.ToString());
-            var oldVal = EscapeMarkdown(Redact(entry.OldValue, entry.IsSensitive));
-            var newVal = EscapeMarkdown(Redact(entry.NewValue, entry.IsSensitive));
+            string change;
+            string oldVal;
+            string newVal;
+
+            if (entry.Kind == DiffKind.TypeChanged && entry.OldType != null && entry.NewType != null)
+            {
+                change = $"{entry.Kind} ({entry.OldType}→{entry.NewType}) ";
+                oldVal = EscapeMarkdown(Redact(entry.OldValue, entry.IsSensitive));
+                newVal = EscapeMarkdown(Redact(entry.NewValue, entry.IsSensitive));
+            }
+            else
+            {
+                change = EscapeMarkdown(entry.Kind.ToString());
+                oldVal = EscapeMarkdown(Redact(entry.OldValue, entry.IsSensitive));
+                newVal = EscapeMarkdown(Redact(entry.NewValue, entry.IsSensitive));
+            }
 
             writer.WriteLine($"| {key} | {change} | {oldVal} | {newVal} |");
         }
@@ -193,6 +223,7 @@ public sealed class DiffReportWriter
     /// Added – green background
     /// Removed – red background
     /// Changed – yellow background
+    /// TypeChanged – purple background
     /// Sensitive values are redacted unless <c>showSecrets</c> is true.
     /// </summary>
     public void WriteHtml(DiffResult result, TextWriter writer)
@@ -203,84 +234,103 @@ public sealed class DiffReportWriter
         writer.WriteLine("<!DOCTYPE html>");
         writer.WriteLine("<html lang=\"en\">");
         writer.WriteLine("<head>");
-        writer.WriteLine("  <meta charset=\"utf-8\">");
-        writer.WriteLine("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
-        writer.WriteLine("  <title>Configuration Diff Report</title>");
-        writer.WriteLine("  <style>");
-        writer.WriteLine("    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; margin: 2rem; line-height: 1.6; color: #333; }");
-        writer.WriteLine("    h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 0.5rem; }");
-        writer.WriteLine("    h2 { color: #34495e; margin-top: 2rem; }");
-        writer.WriteLine("    .summary { background-color: #f8f9fa; padding: 1rem; border-radius: 4px; margin-bottom: 2rem; border-left: 4px solid #3498db; }");
-        writer.WriteLine("    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }");
-        writer.WriteLine("    th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd; }");
-        writer.WriteLine("    th { background-color: #f1f3f5; font-weight: 600; }");
-        writer.WriteLine("    tr.added { background-color: #d4edda; }");
-        writer.WriteLine("    tr.removed { background-color: #f8d7da; }");
-        writer.WriteLine("    tr.changed { background-color: #fff3cd; }");
-        writer.WriteLine("    .added { background-color: #d4edda !important; }");
-        writer.WriteLine("    .removed { background-color: #f8d7da !important; }");
-        writer.WriteLine("    .changed { background-color: #fff3cd !important; }");
-        writer.WriteLine("    .sensitive { font-style: italic; color: #6c757d; }");
-        writer.WriteLine("    .footer { margin-top: 3rem; font-size: 0.85rem; color: #6c757d; border-top: 1px solid #eee; padding-top: 1rem; }");
-        writer.WriteLine("  </style>");
+        writer.WriteLine(" <meta charset=\"utf-8\">");
+        writer.WriteLine(" <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+        writer.WriteLine(" <title>Configuration Diff Report</title>");
+        writer.WriteLine(" <style>");
+        writer.WriteLine(" body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; margin: 2rem; line-height: 1.6; color: #333; }");
+        writer.WriteLine(" h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 0.5rem; }");
+        writer.WriteLine(" h2 { color: #34495e; margin-top: 2rem; }");
+        writer.WriteLine(" .summary { background-color: #f8f9fa; padding: 1rem; border-radius: 4px; margin-bottom: 2rem; border-left: 4px solid #3498db; }");
+        writer.WriteLine(" table { width: 100%; border-collapse: collapse; margin-top: 1rem; }");
+        writer.WriteLine(" th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd; }");
+        writer.WriteLine(" th { background-color: #f1f3f5; font-weight: 600; }");
+        writer.WriteLine(" tr.added { background-color: #d4edda; }");
+        writer.WriteLine(" tr.removed { background-color: #f8d7da; }");
+        writer.WriteLine(" tr.changed { background-color: #fff3cd; }");
+        writer.WriteLine(" tr.typechanged { background-color: #e8c5ff; }");
+        writer.WriteLine(" .added { background-color: #d4edda !important; }");
+        writer.WriteLine(" .removed { background-color: #f8d7da !important; }");
+        writer.WriteLine(" .changed { background-color: #fff3cd !important; }");
+        writer.WriteLine(" .typechanged { background-color: #e8c5ff !important; }");
+        writer.WriteLine(" .sensitive { font-style: italic; color: #6c757d; }");
+        writer.WriteLine(" .footer { margin-top: 3rem; font-size: 0.85rem; color: #6c757d; border-top: 1px solid #eee; padding-top: 1rem; }");
+        writer.WriteLine(" </style>");
         writer.WriteLine("</head>");
         writer.WriteLine("<body>");
-        writer.WriteLine("  <h1>Configuration Diff Report</h1>");
-        writer.WriteLine("  <p>Comparing <strong>{0}</strong> with <strong>{1}</strong></p>", EscapeHtml(result.BasePath), EscapeHtml(result.TargetPath));
+        writer.WriteLine(" <h1>Configuration Diff Report</h1>");
+        writer.WriteLine(" <p>Comparing <strong>{0}</strong> with <strong>{1}</strong></p>", EscapeHtml(result.BasePath), EscapeHtml(result.TargetPath));
 
         // Summary section
-        writer.WriteLine("  <div class=\"summary\">");
-        writer.WriteLine("    <h2>Summary</h2>");
+        writer.WriteLine(" <div class=\"summary\">");
+        writer.WriteLine(" <h2>Summary</h2>");
         var added = result.CountOf(DiffKind.Added);
         var removed = result.CountOf(DiffKind.Removed);
         var changed = result.CountOf(DiffKind.Changed);
-        writer.WriteLine("    <p><strong>Added:</strong> {0}<br>", added);
-        writer.WriteLine("       <strong>Removed:</strong> {0}<br>", removed);
-        writer.WriteLine("       <strong>Changed:</strong> {0}</p>", changed);
-        writer.WriteLine("  </div>");
+        var typeChanged = result.CountOf(DiffKind.TypeChanged);
+        writer.WriteLine(" <p><strong>Added:</strong> {0}<br>", added);
+        writer.WriteLine(" <strong>Removed:</strong> {0}<br>", removed);
+        writer.WriteLine(" <strong>Changed:</strong> {0}<br>", changed);
+        writer.WriteLine(" <strong>TypeChanged:</strong> {0}</p>", typeChanged);
+        writer.WriteLine(" </div>");
 
         // Table section
-        writer.WriteLine("  <h2>Details</h2>");
-        writer.WriteLine("  <table>");
-        writer.WriteLine("    <thead>");
-        writer.WriteLine("      <tr>");
-        writer.WriteLine("        <th>Key</th>");
-        writer.WriteLine("        <th>Change</th>");
-        writer.WriteLine("        <th>Old Value</th>");
-        writer.WriteLine("        <th>New Value</th>");
-        writer.WriteLine("      </tr>");
-        writer.WriteLine("    </thead>");
-        writer.WriteLine("    <tbody>");
+        writer.WriteLine(" <h2>Details</h2>");
+        writer.WriteLine(" <table>");
+        writer.WriteLine(" <thead>");
+        writer.WriteLine(" <tr>");
+        writer.WriteLine(" <th>Key</th>");
+        writer.WriteLine(" <th>Change</th>");
+        writer.WriteLine(" <th>Old Value</th>");
+        writer.WriteLine(" <th>New Value</th>");
+        writer.WriteLine(" </tr>");
+        writer.WriteLine(" </thead>");
+        writer.WriteLine(" <tbody>");
 
         foreach (var entry in result.Entries)
         {
             var key = EscapeHtml(entry.Key);
-            var change = EscapeHtml(entry.Kind.ToString());
-            var oldVal = EscapeHtml(Redact(entry.OldValue, entry.IsSensitive));
-            var newVal = EscapeHtml(Redact(entry.NewValue, entry.IsSensitive));
-            var rowClass = entry.Kind switch
-            {
-                DiffKind.Added => "added",
-                DiffKind.Removed => "removed",
-                DiffKind.Changed => "changed",
-                _ => ""
-            };
+            string change;
+            string oldVal;
+            string newVal;
+            string rowClass;
 
-            writer.WriteLine("      <tr class=\"{0}\">", rowClass);
-            writer.WriteLine("        <td><code>{0}</code></td>", key);
-            writer.WriteLine("        <td><span class=\"{0}\">{1}</span></td>", rowClass, change);
-            writer.WriteLine("        <td><code>{0}</code></td>", oldVal);
-            writer.WriteLine("        <td><code>{0}</code></td>", newVal);
-            writer.WriteLine("      </tr>");
+            if (entry.Kind == DiffKind.TypeChanged && entry.OldType != null && entry.NewType != null)
+            {
+                change = $"{entry.Kind} ({entry.OldType}→{entry.NewType}) ";
+                oldVal = EscapeHtml(Redact(entry.OldValue, entry.IsSensitive));
+                newVal = EscapeHtml(Redact(entry.NewValue, entry.IsSensitive));
+                rowClass = "typechanged";
+            }
+            else
+            {
+                change = EscapeHtml(entry.Kind.ToString());
+                oldVal = EscapeHtml(Redact(entry.OldValue, entry.IsSensitive));
+                newVal = EscapeHtml(Redact(entry.NewValue, entry.IsSensitive));
+                rowClass = entry.Kind switch
+                {
+                    DiffKind.Added => "added",
+                    DiffKind.Removed => "removed",
+                    DiffKind.Changed => "changed",
+                    _ => ""
+                };
+            }
+
+            writer.WriteLine(" <tr class=\"{0}\">", rowClass);
+            writer.WriteLine(" <td><code>{0}</code></td>", key);
+            writer.WriteLine(" <td><span class=\"{0}\">{1}</span></td>", rowClass, change);
+            writer.WriteLine(" <td><code>{0}</code></td>", oldVal);
+            writer.WriteLine(" <td><code>{0}</code></td>", newVal);
+            writer.WriteLine(" </tr>");
         }
 
-        writer.WriteLine("    </tbody>");
-        writer.WriteLine("  </table>");
+        writer.WriteLine(" </tbody>");
+        writer.WriteLine(" </table>");
 
-        writer.WriteLine("  <div class=\"footer\">");
-        writer.WriteLine("    <p>Generated by appsettings-diff at {0}</p>", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-        writer.WriteLine("    <p>Base: {0} | Target: {1}</p>", EscapeHtml(result.BasePath), EscapeHtml(result.TargetPath));
-        writer.WriteLine("  </div>");
+        writer.WriteLine(" <div class=\"footer\">");
+        writer.WriteLine(" <p>Generated by appsettings-diff at {0}</p>", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+        writer.WriteLine(" <p>Base: {0} | Target: {1}</p>", EscapeHtml(result.BasePath), EscapeHtml(result.TargetPath));
+        writer.WriteLine(" </div>");
 
         writer.WriteLine("</body>");
         writer.WriteLine("</html>");
@@ -301,6 +351,7 @@ public sealed class DiffReportWriter
     /// - Added keys become "add" operations
     /// - Removed keys become "remove" operations
     /// - Changed keys become "replace" operations
+    /// - TypeChanged keys become "replace" operations with type information in a custom property
     /// Sensitive values are redacted unless <c>showSecrets</c> is true.
     /// </summary>
     /// <param name="result">The diff result to convert.</param>
@@ -319,34 +370,40 @@ public sealed class DiffReportWriter
                 ? "[REDACTED]"
                 : (entry.Kind == DiffKind.Removed ? entry.OldValue : entry.NewValue) ?? string.Empty;
 
+            string op;
             switch (entry.Kind)
             {
                 case DiffKind.Added:
-                    operations.Add(new JsonPatchOperation
-                    {
-                        Op = "add",
-                        Path = path,
-                        Value = value
-                    });
+                    op = "add";
                     break;
 
                 case DiffKind.Removed:
-                    operations.Add(new JsonPatchOperation
-                    {
-                        Op = "remove",
-                        Path = path
-                    });
+                    op = "remove";
                     break;
 
                 case DiffKind.Changed:
-                    operations.Add(new JsonPatchOperation
-                    {
-                        Op = "replace",
-                        Path = path,
-                        Value = value
-                    });
+                case DiffKind.TypeChanged:
+                    op = "replace";
+                    break;
+                default:
+                    op = "replace";
                     break;
             }
+
+            var operation = new JsonPatchOperation
+            {
+                Op = op,
+                Path = path,
+                Value = value
+            };
+
+            // Add type information for TypeChanged entries
+            if (entry.Kind == DiffKind.TypeChanged && entry.OldType != null && entry.NewType != null)
+            {
+                operation.Value = $"[TYPE_CHANGED: {entry.OldType}→{entry.NewType}] {value}";
+            }
+
+            operations.Add(operation);
         }
 
         var options = new JsonSerializerOptions
@@ -365,6 +422,5 @@ public sealed class DiffReportWriter
             .Replace("~", "~0")
             .Replace("/", "~1");
     }
-
 
 }

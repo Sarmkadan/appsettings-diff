@@ -193,7 +193,10 @@ public enum DiffKind
     Removed,
 
     /// <summary>The key exists in both configurations with different values.</summary>
-    Changed
+    Changed,
+
+    /// <summary>The key exists in both configurations but the value types differ.</summary>
+    TypeChanged
 }
 
 /// <summary>
@@ -218,6 +221,18 @@ public class DiffEntry
 
     /// <summary>Gets the optional source path associated with the entry.</summary>
     public string? Path { get; init; }
+
+    /// <summary>
+    /// Gets the type of the baseline value (e.g., "string", "number", "boolean", "object", "null").
+    /// Only relevant for TypeChanged differences.
+    /// </summary>
+    public string? OldType { get; init; }
+
+    /// <summary>
+    /// Gets the type of the target value (e.g., "string", "number", "boolean", "object", "null").
+    /// Only relevant for TypeChanged differences.
+    /// </summary>
+    public string? NewType { get; init; }
 }
 
 /// <summary>
@@ -328,9 +343,23 @@ public class ConfigDiffer
                     IsSensitive = _detector.IsSensitive(key)
                 });
             }
+            else if (HasDifferentTypes(kvp.Value, target.GetValue(key)))
+            {
+                // Type changed - use TypeChanged kind
+                result.Entries.Add(new DiffEntry
+                {
+                    Kind = DiffKind.TypeChanged,
+                    Key = key,
+                    OldValue = kvp.Value,
+                    NewValue = target.GetValue(key),
+                    OldType = DetectJsonType(kvp.Value),
+                    NewType = DetectJsonType(target.GetValue(key)),
+                    IsSensitive = _detector.IsSensitive(key)
+                });
+            }
             else if (!AreValuesEqual(kvp.Value, target.GetValue(key), options))
             {
-                // Check if changed
+                // Value changed but types are the same
                 result.Entries.Add(new DiffEntry
                 {
                     Kind = DiffKind.Changed,
@@ -427,6 +456,58 @@ public class ConfigDiffer
     private static bool IsArrayValue(string value)
     {
         return value.Contains('[') && value.EndsWith(']');
+    }
+
+    /// <summary>
+    /// Detects the JSON type of a configuration value string.
+    /// </summary>
+    /// <param name="value">The value to analyze.</param>
+    /// <returns>The detected type ("string", "number", "boolean", "object", "null", or "array").</returns>
+    private static string DetectJsonType(string? value)
+    {
+        if (value == null)
+            return "null";
+
+        if (string.IsNullOrWhiteSpace(value))
+            return "string"; // Empty string is still a string
+
+        // Check for JSON literals
+        var trimmed = value.Trim();
+
+        if (trimmed.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.Equals("false", StringComparison.OrdinalIgnoreCase))
+            return "boolean";
+
+        if (trimmed.Equals("null", StringComparison.OrdinalIgnoreCase))
+            return "null";
+
+        // Check for numbers (including scientific notation)
+        if (double.TryParse(trimmed, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _))
+            return "number";
+
+        // Check if it looks like a JSON object (starts with { and ends with })
+        if (trimmed.StartsWith('{') && trimmed.EndsWith('}'))
+            return "object";
+
+        // Check if it looks like a JSON array (starts with [ and ends with ])
+        if (trimmed.StartsWith('[') && trimmed.EndsWith(']'))
+            return "array";
+
+        // Default to string
+        return "string";
+    }
+
+    /// <summary>
+    /// Determines if two values have different types.
+    /// </summary>
+    /// <param name="value1">The first value.</param>
+    /// <param name="value2">The second value.</param>
+    /// <returns>True if the types are different; otherwise false.</returns>
+    private static bool HasDifferentTypes(string? value1, string? value2)
+    {
+        var type1 = DetectJsonType(value1);
+        var type2 = DetectJsonType(value2);
+        return type1 != type2;
     }
 
     /// <summary>
