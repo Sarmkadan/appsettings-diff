@@ -24,12 +24,14 @@ Serializes the current diff report into a JSON string. The output is compact and
 - **Return value:** `string` – A JSON representation of the diff report.
 - **Throws:** Does not throw under normal operation.
 
-### `ToMarkdown()`
+### `WriteMarkdown()`
 
-Serializes the current diff report into a Markdown string. The output is formatted for readability in Markdown viewers, including Git platforms, documentation sites, or IDE previews.
+Writes the current diff report into a Markdown format to the provided writer. The output is formatted for readability in Markdown viewers, including Git platforms, documentation sites, or IDE previews.
 
-- **Parameters:** None
-- **Return value:** `string` – A Markdown-formatted representation of the diff report.
+- **Parameters:**
+  - `result`: The <see cref="DiffResult"/> to write.
+  - `writer`: The <see cref="TextWriter"/> to write to.
+- **Return value:** `void`
 - **Throws:** Does not throw under normal operation.
 
 ## Usage

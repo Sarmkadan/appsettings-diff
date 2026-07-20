@@ -23,8 +23,7 @@ public static class Program
         var dirOption = new Option<DirectoryInfo>("--dir", "The directory containing configuration files").ExistingOnly();
         var envsOption = new Option<string[]>("--envs", "The environments to compare (comma-separated, e.g. Production,Staging)") { AllowMultipleArgumentsPerToken = true };
 
-        var jsonOption = new Option<bool>("--json", "Output in JSON format");
-        var markdownOption = new Option<bool>("--markdown", "Output in Markdown format");
+        var formatOption = new Option<string?>("--format", "Output format (json, markdown)");
         var showSecretsOption = new Option<bool>("--show-secrets", "Show sensitive keys");
         var ignoreOption = new Option<string[]>("--ignore", "Glob patterns of keys to ignore") { AllowMultipleArgumentsPerToken = true };
         var failOnDiffOption = new Option<bool>("--fail-on-diff", "Exit with 1 if differences are found");
@@ -36,8 +35,7 @@ public static class Program
         var diffCommand = new Command("diff", "Compare two configuration files");
         diffCommand.AddArgument(baseArgument);
         diffCommand.AddArgument(targetArgument);
-        diffCommand.AddOption(jsonOption);
-        diffCommand.AddOption(markdownOption);
+        diffCommand.AddOption(formatOption);
         diffCommand.AddOption(showSecretsOption);
         diffCommand.AddOption(ignoreOption);
         diffCommand.AddOption(failOnDiffOption);
@@ -47,8 +45,7 @@ public static class Program
         var dirCommand = new Command("dir", "Compare configuration files in a directory");
         dirCommand.AddOption(dirOption);
         dirCommand.AddOption(envsOption);
-        dirCommand.AddOption(jsonOption);
-        dirCommand.AddOption(markdownOption);
+        dirCommand.AddOption(formatOption);
         dirCommand.AddOption(showSecretsOption);
         dirCommand.AddOption(ignoreOption);
         dirCommand.AddOption(failOnDiffOption);
@@ -60,8 +57,7 @@ public static class Program
         // The bare invocation `appsettings-diff <base> <target>` behaves like `diff`.
         rootCommand.AddArgument(baseArgument);
         rootCommand.AddArgument(targetArgument);
-        rootCommand.AddOption(jsonOption);
-        rootCommand.AddOption(markdownOption);
+        rootCommand.AddOption(formatOption);
         rootCommand.AddOption(showSecretsOption);
         rootCommand.AddOption(ignoreOption);
         rootCommand.AddOption(failOnDiffOption);
@@ -86,8 +82,7 @@ public static class Program
         }
 
         OutputOptions ReadOutputOptions(InvocationContext context) => new(
-            Json: context.ParseResult.GetValueForOption(jsonOption),
-            Markdown: context.ParseResult.GetValueForOption(markdownOption),
+            Format: context.ParseResult.GetValueForOption(formatOption),
             ShowSecrets: context.ParseResult.GetValueForOption(showSecretsOption),
             IgnorePatterns: context.ParseResult.GetValueForOption(ignoreOption) ?? [],
             FailOnDiff: context.ParseResult.GetValueForOption(failOnDiffOption),
@@ -100,7 +95,7 @@ public static class Program
         return await rootCommand.InvokeAsync(args);
     }
 
-    private sealed record OutputOptions(bool Json, bool Markdown, bool ShowSecrets, string[] IgnorePatterns, bool FailOnDiff, bool FailOnChanges);
+    private sealed record OutputOptions(string? Format, bool ShowSecrets, string[] IgnorePatterns, bool FailOnDiff, bool FailOnChanges);
 
     private static int Execute(InvocationContext context, Func<int> action)
     {
@@ -170,10 +165,10 @@ public static class Program
     {
         var writer = new DiffReportWriter(detector, options.ShowSecrets);
 
-        if (options.Json)
+        if (options.Format == "json")
             Console.WriteLine(writer.ToJson(result));
-        else if (options.Markdown)
-            Console.WriteLine(writer.ToMarkdown(result));
+        else if (options.Format == "markdown")
+            writer.WriteMarkdown(result, Console.Out);
         else
             writer.WriteConsoleSummary(result);
     }

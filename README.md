@@ -11,7 +11,7 @@ The `DiffReportWriter` class generates human-readable reports from configuration
 - `void WriteConsole(DiffResult result)` - Writes a color-coded console table
 - `string ToJson(DiffResult result)` - Serializes to indented JSON
 - `string ToJson(DiffResult result, bool indented)` - Serializes to JSON with formatting control
-- `string ToMarkdown(DiffResult result)` - Generates a Markdown table
+- `void WriteMarkdown(DiffResult result, TextWriter writer)` - Writes a Markdown table
 
 ### Example usage:
 
@@ -33,8 +33,7 @@ string json = writer.ToJson(result);
 Console.WriteLine(json);
 
 // Export as Markdown (suitable for PR comments)
-string markdown = writer.ToMarkdown(result);
-Console.WriteLine(markdown);
+writer.WriteMarkdown(result, Console.Out);
 
 // Export compact JSON
 string compactJson = writer.ToJson(result, indented: false);
