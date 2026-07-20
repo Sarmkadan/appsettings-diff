@@ -12,7 +12,12 @@ public static class Program
     private static readonly string[] SupportedExtensions =[".json", ".yaml", ".yml"];
 
     /// <summary>
-    /// Runs the CLI. Exit codes: 0 on success, 1 when --fail-on-diff is set and differences exist, 2 on errors or when --fail-on-changes is set and changes exist.
+    /// Runs the CLI.
+    ///
+    /// Exit codes:
+    /// 0 - Success: No differences found or successful execution
+    /// 1 - Differences found: When --fail-on-diff is set and differences exist
+    /// 2 - Error: Bad arguments, missing files, or other errors
     /// </summary>
     /// <param name="args">Raw command-line arguments.</param>
     public static async Task<int> Main(string[] args)
@@ -27,13 +32,19 @@ public static class Program
         var showSecretsOption = new Option<bool>("--show-secrets", "Show sensitive keys");
         var ignoreOption = new Option<string[]>("--ignore", "Glob patterns of keys to ignore") { AllowMultipleArgumentsPerToken = true };
         var sensitivePatternsOption = new Option<FileInfo?>("--sensitive-patterns", "File containing additional sensitive key patterns (one per line, # comments allowed)");
-        var failOnDiffOption = new Option<bool>("--fail-on-diff", "Exit with 1 if differences are found");
-        var failOnChangesOption = new Option<bool>("--fail-on-changes", "Exit with 2 if changes are found");
+        var failOnDiffOption = new Option<bool>("--fail-on-diff", "Exit with code 1 if differences are found");
+        var failOnChangesOption = new Option<bool>("--fail-on-changes", "Exit with code 2 if changes (additions/removals/modifications) are found");
 
-        var rootCommand = new RootCommand("Appsettings Diff Tool");
+        var rootCommand = new RootCommand("Appsettings Diff Tool")
+        {
+            Description = "Compare configuration files (JSON/YAML) and detect differences"
+        };
 
         // Mode 1: <base> <target>
-        var diffCommand = new Command("diff", "Compare two configuration files");
+        var diffCommand = new Command("diff", "Compare two configuration files")
+        {
+            Description = "Compare base and target configuration files"
+        };
         diffCommand.AddArgument(baseArgument);
         diffCommand.AddArgument(targetArgument);
         diffCommand.AddOption(formatOption);
@@ -44,7 +55,10 @@ public static class Program
         diffCommand.AddOption(failOnChangesOption);
 
         // Mode 2: --dir --envs
-        var dirCommand = new Command("dir", "Compare configuration files in a directory");
+        var dirCommand = new Command("dir", "Compare configuration files in a directory")
+        {
+            Description = "Compare configuration files across multiple environments in a directory"
+        };
         dirCommand.AddOption(dirOption);
         dirCommand.AddOption(envsOption);
         dirCommand.AddOption(formatOption);
@@ -67,6 +81,17 @@ public static class Program
         rootCommand.AddOption(failOnDiffOption);
         rootCommand.AddOption(failOnChangesOption);
 
+        rootCommand.SetHandler((InvocationContext context) =>
+        {
+            if (args.Length == 0 || (args.Length == 1 && (args[0] == "--help" || args[0] == "-h")))
+            {
+                ShowHelp(rootCommand);
+                context.ExitCode = 0;
+                return;
+            }
+            HandleDiff(context);
+        });
+
         void HandleDiff(InvocationContext context)
         {
             var baseFile = context.ParseResult.GetValueForArgument(baseArgument);
@@ -74,15 +99,6 @@ public static class Program
             var options = ReadOutputOptions(context);
 
             context.ExitCode = Execute(context, () => RunFileDiff(baseFile, targetFile, options));
-        }
-
-        void HandleDir(InvocationContext context)
-        {
-            var dir = context.ParseResult.GetValueForOption(dirOption);
-            var envs = context.ParseResult.GetValueForOption(envsOption);
-            var options = ReadOutputOptions(context);
-
-            context.ExitCode = Execute(context, () => RunDirectoryDiff(dir, envs, options));
         }
 
         OutputOptions ReadOutputOptions(InvocationContext context) => new(
@@ -93,11 +109,47 @@ public static class Program
             FailOnDiff: context.ParseResult.GetValueForOption(failOnDiffOption),
             FailOnChanges: context.ParseResult.GetValueForOption(failOnChangesOption));
 
-        rootCommand.SetHandler(HandleDiff);
-        diffCommand.SetHandler(HandleDiff);
-        dirCommand.SetHandler(HandleDir);
-
         return await rootCommand.InvokeAsync(args);
+    }
+
+    private static void ShowHelp(RootCommand rootCommand)
+    {
+        var console = Console.Out;
+        console.WriteLine("Appsettings Diff Tool");
+        console.WriteLine();
+        console.WriteLine("Compare configuration files (JSON/YAML) and detect differences.");
+        console.WriteLine();
+        console.WriteLine("USAGE:");
+        console.WriteLine("  appsettings-diff [OPTIONS] <base> <target>");
+        console.WriteLine("  appsettings-diff diff [OPTIONS] <base> <target>");
+        console.WriteLine("  appsettings-diff dir [OPTIONS] --dir <DIRECTORY> --envs <ENV1,ENV2,...>");
+        console.WriteLine();
+        console.WriteLine("EXIT CODES:");
+        console.WriteLine("  0  Success: No differences found or successful execution");
+        console.WriteLine("  1  Differences found: When --fail-on-diff is set and differences exist");
+        console.WriteLine("  2  Error: Bad arguments, missing files, or other errors");
+        console.WriteLine();
+        console.WriteLine("OPTIONS:");
+        WriteOptionDescriptions(console, rootCommand);
+    }
+
+    private static void WriteOptionDescriptions(TextWriter writer, RootCommand command)
+    {
+        foreach (var option in command.Options)
+        {
+            writer.WriteLine($"  --{option.Name}{(option.Aliases.Count > 1 ? " (" + string.Join(", -", option.Aliases.Skip(1)) + ")" : "")}");
+            writer.WriteLine($"    {option.Description}");
+        }
+
+        foreach (var subcommand in command.Subcommands)
+        {
+            writer.WriteLine($"  {subcommand.Name} - {subcommand.Description}");
+        }
+
+        foreach (var argument in command.Arguments)
+        {
+            writer.WriteLine($"  <{argument.Name}> - {argument.Description}");
+        }
     }
 
     private sealed record OutputOptions(string? Format, bool ShowSecrets, string[] IgnorePatterns, FileInfo? SensitivePatternsFile, bool FailOnDiff, bool FailOnChanges);
@@ -178,8 +230,6 @@ public static class Program
             anyDifferences |= result.HasDifferences;
             anyChanges |= result.CountOf(DiffKind.Added) > 0 || result.CountOf(DiffKind.Removed) > 0 || result.CountOf(DiffKind.Changed) > 0;
         }
-
-        Console.WriteLine($"Differences: {anyDifferences}, Changes: {anyChanges}, Added: {differ.Diff(baseline, ToFlatConfig(LoadEnvironmentConfig(dir, environments[1])), options.IgnorePatterns, baselineEnv, environments[1]).CountOf(DiffKind.Added)}, Removed: {differ.Diff(baseline, ToFlatConfig(LoadEnvironmentConfig(dir, environments[1])), options.IgnorePatterns, baselineEnv, environments[1]).CountOf(DiffKind.Removed)}, Changed: {differ.Diff(baseline, ToFlatConfig(LoadEnvironmentConfig(dir, environments[1])), options.IgnorePatterns, baselineEnv, environments[1]).CountOf(DiffKind.Changed)}");
 
         return options.FailOnDiff && anyDifferences ? 1 : options.FailOnChanges && anyChanges ? 2 : 0;
     }
