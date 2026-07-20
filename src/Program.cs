@@ -13,7 +13,7 @@ namespace AppsettingsDiff;
 /// </summary>
 public static class Program
 {
-    private static readonly string[] SupportedExtensions =[".json", ".yaml", ".yml"];
+    private static readonly string[] SupportedExtensions = [".json", ".yaml", ".yml", ".env"];
 
     /// <summary>
     /// Runs the CLI.
@@ -287,7 +287,7 @@ public static class Program
     }
 
     /// <summary>
-    /// Loads a configuration file (JSON or YAML) into a flat key-value dictionary
+    /// Loads a configuration file (JSON, YAML, or .env) into a flat key-value dictionary
     /// using the same "Section:Key" convention as ASP.NET Core configuration.
     /// </summary>
     private static Dictionary<string, string> LoadConfigFile(string path)
@@ -298,6 +298,11 @@ public static class Program
             extension.Equals(".yml", StringComparison.OrdinalIgnoreCase))
         {
             return YamlConfigReader.ReadFile(path);
+        }
+
+        if (extension.Equals(".env", StringComparison.OrdinalIgnoreCase))
+        {
+            return DotEnvReader.ReadFile(path);
         }
 
         var configuration = new ConfigurationBuilder()
