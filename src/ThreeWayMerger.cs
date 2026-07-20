@@ -45,6 +45,32 @@ public sealed class MergeConflict
     /// Gets the value from the "theirs" (remote) configuration, if present.
     /// </summary>
     public string? TheirValue { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether this conflict was automatically resolved.
+    /// </summary>
+    public bool AutoResolved { get; init; }
+}
+
+/// <summary>
+/// Strategy for automatically resolving merge conflicts.
+/// </summary>
+public enum ConflictResolutionStrategy
+{
+    /// <summary>
+    /// Conflicts are not automatically resolved; they are recorded in the result.
+    /// </summary>
+    Manual,
+
+    /// <summary>
+    /// Prefer our (local) changes when resolving conflicts.
+    /// </summary>
+    PreferOurs,
+
+    /// <summary>
+    /// Prefer their (remote) changes when resolving conflicts.
+    /// </summary>
+    PreferTheirs
 }
 
 /// <summary>
@@ -67,9 +93,30 @@ public static class ThreeWayMerger
         Dictionary<string, string> ours,
         Dictionary<string, string> theirs)
     {
+        return Merge(baseConfig, ours, theirs, ConflictResolutionStrategy.Manual);
+    }
+
+    /// <summary>
+    /// Merges three configuration dictionaries using three-way merge algorithm with automatic conflict resolution.
+    /// </summary>
+    /// <param name="baseConfig">The base configuration to merge from.</param>
+    /// <param name="ours">Our local configuration with changes.</param>
+    /// <param name="theirs">Their remote configuration with changes.</param>
+    /// <param name="strategy">The conflict resolution strategy to use.</param>
+    /// <returns>A <see cref="MergeResult"/> containing the merged configuration and any conflicts.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="baseConfig"/>, <paramref name="ours"/>, <paramref name="theirs"/> or <paramref name="strategy"/> is <see langword="null"/>.
+    /// </exception>
+    public static MergeResult Merge(
+        Dictionary<string, string> baseConfig,
+        Dictionary<string, string> ours,
+        Dictionary<string, string> theirs,
+        ConflictResolutionStrategy strategy)
+    {
         ArgumentNullException.ThrowIfNull(baseConfig);
         ArgumentNullException.ThrowIfNull(ours);
         ArgumentNullException.ThrowIfNull(theirs);
+        ArgumentNullException.ThrowIfNull(strategy);
 
         var merged = new Dictionary<string, string>(StringComparer.Ordinal);
         var conflicts = new List<MergeConflict>();
@@ -116,16 +163,37 @@ public static class ThreeWayMerger
             else
             {
                 // Conflict: both sides changed the key differently.
-                // Prefer our side; if ours deleted the key, the key stays deleted.
-                if (ourValue is not null)
-                    merged[key] = ourValue;
+                string? resolvedValue = null;
+                bool autoResolved = false;
+
+                switch (strategy)
+                {
+                    case ConflictResolutionStrategy.Manual:
+                        // Keep both values, mark as not auto-resolved
+                        resolvedValue = ourValue; // Default to our side for backward compatibility
+                        break;
+
+                    case ConflictResolutionStrategy.PreferOurs:
+                        resolvedValue = ourValue;
+                        autoResolved = true;
+                        break;
+
+                    case ConflictResolutionStrategy.PreferTheirs:
+                        resolvedValue = theirValue;
+                        autoResolved = true;
+                        break;
+                }
+
+                if (resolvedValue is not null)
+                    merged[key] = resolvedValue;
 
                 conflicts.Add(new MergeConflict
                 {
                     Key = key,
                     BaseValue = baseValue,
                     OurValue = ourValue,
-                    TheirValue = theirValue
+                    TheirValue = theirValue,
+                    AutoResolved = autoResolved
                 });
             }
         }
