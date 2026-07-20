@@ -4,8 +4,28 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace AppsettingsDiff;
+
+/// <summary>
+/// Represents a JSON Patch operation according to RFC 6902
+/// </summary>
+public sealed class JsonPatchOperation
+{
+    [JsonPropertyName("op")]
+    public required string Op { get; set; }
+
+    [JsonPropertyName("path")]
+    public required string Path { get; set; }
+
+    [JsonPropertyName("value")]
+    public string? Value { get; set; }
+
+    [JsonPropertyName("from")]
+    public string? From { get; set; }
+}
+
 
 /// <summary>
 /// Writes diff results to various output formats.
@@ -275,4 +295,76 @@ public sealed class DiffReportWriter
             .Replace(" ", "&nbsp;")
             .Replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;");
     }
+    /// <summary>
+    /// Generates a JSON Patch (RFC 6902) representation of the diff.
+    /// Each difference is converted to a JSON Patch operation:
+    /// - Added keys become "add" operations
+    /// - Removed keys become "remove" operations
+    /// - Changed keys become "replace" operations
+    /// Sensitive values are redacted unless <c>showSecrets</c> is true.
+    /// </summary>
+    /// <param name="result">The diff result to convert.</param>
+    /// <returns>JSON Patch array as a string.</returns>
+    public string ToJsonPatch(DiffResult result)
+    {
+        if (result == null)
+            throw new ArgumentNullException(nameof(result));
+
+        var operations = new List<JsonPatchOperation>();
+
+        foreach (var entry in result.Entries)
+        {
+            var path = EscapeJsonPointer(entry.Key);
+            var value = entry.IsSensitive && !_showSecrets
+                ? "[REDACTED]"
+                : (entry.Kind == DiffKind.Removed ? entry.OldValue : entry.NewValue) ?? string.Empty;
+
+            switch (entry.Kind)
+            {
+                case DiffKind.Added:
+                    operations.Add(new JsonPatchOperation
+                    {
+                        Op = "add",
+                        Path = path,
+                        Value = value
+                    });
+                    break;
+
+                case DiffKind.Removed:
+                    operations.Add(new JsonPatchOperation
+                    {
+                        Op = "remove",
+                        Path = path
+                    });
+                    break;
+
+                case DiffKind.Changed:
+                    operations.Add(new JsonPatchOperation
+                    {
+                        Op = "replace",
+                        Path = path,
+                        Value = value
+                    });
+                    break;
+            }
+        }
+
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+
+        return JsonSerializer.Serialize(operations, options);
+    }
+
+    private static string EscapeJsonPointer(string path)
+    {
+        // JSON Pointer requires ~ to be encoded as ~0 and / to be encoded as ~1
+        return path
+            .Replace("~", "~0")
+            .Replace("/", "~1");
+    }
+
+
 }
