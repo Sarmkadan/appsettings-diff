@@ -45,6 +45,8 @@ namespace AppsettingsDiff
             var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var path = new List<string>();
             int listIndex = -1;
+            var keysAtEachLevel = new Stack<HashSet<string>>();
+            keysAtEachLevel.Push(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
 
             for (int i = 0; i < lines.Length; i++)
             {
@@ -69,12 +71,16 @@ namespace AppsettingsDiff
 
                     RemoveSectionEntry(result, parentKey);
                     result[key] = value;
+                    listIndex = -1;
                 }
                 else
                 {
                     // Key-value pair: drop path segments that belong to deeper or sibling branches
-                    if (path.Count > indent)
-                        path.RemoveRange(indent, path.Count - indent);
+                    while (path.Count > indent)
+                    {
+                        path.RemoveAt(path.Count - 1);
+                        keysAtEachLevel.Pop();
+                    }
 
                     int colonIndex = content.IndexOf(':');
                     if (colonIndex == -1)
@@ -83,11 +89,25 @@ namespace AppsettingsDiff
                     string key = content.Substring(0, colonIndex).Trim();
                     string value = NormalizeValue(content.Substring(colonIndex + 1).Trim());
 
-                    RemoveSectionEntry(result, BuildKey(path));
+                    string fullKeyPath = BuildKey(path);
+                    string newKeyPath = fullKeyPath.Length == 0 ? key : $"{fullKeyPath}:{key}";
+
+                    // Check for duplicate key at the current level
+                    if (keysAtEachLevel.Peek().Contains(key))
+                    {
+                        Console.Error.WriteLine($"Warning: Duplicate key '{newKeyPath}' found. Last value will be used.");
+                    }
+                    else
+                    {
+                        keysAtEachLevel.Peek().Add(key);
+                    }
+
+                    RemoveSectionEntry(result, fullKeyPath);
 
                     path.Add(key);
                     result[BuildKey(path)] = value;
                     listIndex = -1;
+                    keysAtEachLevel.Push(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
                 }
             }
 
