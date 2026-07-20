@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+
 namespace AppsettingsDiff;
 
 /// <summary>
@@ -5,18 +10,78 @@ namespace AppsettingsDiff;
 /// </summary>
 public class SensitiveKeyDetector
 {
-    private static readonly string[] SensitivePatterns =
-    [
-        "*secret*",
-        "*password*",
-        "*token*",
-        "*key*",
-        "*api*",
-        "*credential*",
-        "*connection*string*",
-        "*pwd*",
-        "*access*key*"
-    ];
+    private readonly string[] _sensitivePatterns;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SensitiveKeyDetector"/> class with default patterns.
+    /// </summary>
+    public SensitiveKeyDetector() : this(LoadDefaultPatterns())
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SensitiveKeyDetector"/> class with custom patterns.
+    /// </summary>
+    /// <param name="customPatterns">Custom sensitive patterns to use.</param>
+    public SensitiveKeyDetector(IEnumerable<string> customPatterns)
+    {
+        _sensitivePatterns = customPatterns?.ToArray() ?? Array.Empty<string>();
+    }
+
+    /// <summary>
+    /// Loads default sensitive patterns.
+    /// </summary>
+    /// <returns>Array of default sensitive patterns.</returns>
+    private static string[] LoadDefaultPatterns()
+    {
+        return [
+            "*secret*",
+            "*password*",
+            "*token*",
+            "*key*",
+            "*api*",
+            "*credential*",
+            "*connection*string*",
+            "*pwd*",
+            "*access*key*"
+        ];
+    }
+
+    /// <summary>
+    /// Loads sensitive patterns from a file (one wildcard pattern per line, # comments allowed).
+    /// </summary>
+    /// <param name="path">Path to the file containing custom patterns.</param>
+    /// <returns>Array of patterns loaded from file, combined with default patterns.</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the specified file does not exist.</exception>
+    public static SensitiveKeyDetector LoadWithCustomPatterns(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            throw new ArgumentException("Path cannot be null or empty.", nameof(path));
+
+        if (!File.Exists(path))
+            throw new FileNotFoundException($"Custom patterns file not found: {path}");
+
+        var patterns = new List<string>(LoadDefaultPatterns());
+
+        try
+        {
+            var lines = File.ReadAllLines(path);
+            foreach (var line in lines)
+            {
+                var trimmedLine = line.Trim();
+                if (string.IsNullOrEmpty(trimmedLine) || trimmedLine.StartsWith('#'))
+                    continue;
+
+                patterns.Add(trimmedLine);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new InvalidOperationException($"Failed to read custom patterns file: {ex.Message}", ex);
+        }
+
+        return new SensitiveKeyDetector(patterns);
+    }
 
     /// <summary>
     /// Determines whether the given configuration key matches any of the known sensitive patterns.
@@ -28,7 +93,7 @@ public class SensitiveKeyDetector
         if (string.IsNullOrWhiteSpace(key))
             return false;
 
-        return SensitivePatterns.Any(pattern =>
+        return _sensitivePatterns.Any(pattern =>
             pattern.Contains('*')
                 ? KeyPatternMatcher.IsMatch(key, pattern)
                 : key.Contains(pattern, StringComparison.OrdinalIgnoreCase));

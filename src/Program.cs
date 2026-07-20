@@ -9,7 +9,7 @@ namespace AppsettingsDiff;
 /// </summary>
 public static class Program
 {
-    private static readonly string[] SupportedExtensions = [".json", ".yaml", ".yml"];
+    private static readonly string[] SupportedExtensions =[".json", ".yaml", ".yml"];
 
     /// <summary>
     /// Runs the CLI. Exit codes: 0 on success, 1 when --fail-on-diff is set and differences exist, 2 on errors or when --fail-on-changes is set and changes exist.
@@ -26,6 +26,7 @@ public static class Program
         var formatOption = new Option<string?>("--format", "Output format (json, markdown)");
         var showSecretsOption = new Option<bool>("--show-secrets", "Show sensitive keys");
         var ignoreOption = new Option<string[]>("--ignore", "Glob patterns of keys to ignore") { AllowMultipleArgumentsPerToken = true };
+        var sensitivePatternsOption = new Option<FileInfo?>("--sensitive-patterns", "File containing additional sensitive key patterns (one per line, # comments allowed)");
         var failOnDiffOption = new Option<bool>("--fail-on-diff", "Exit with 1 if differences are found");
         var failOnChangesOption = new Option<bool>("--fail-on-changes", "Exit with 2 if changes are found");
 
@@ -38,6 +39,7 @@ public static class Program
         diffCommand.AddOption(formatOption);
         diffCommand.AddOption(showSecretsOption);
         diffCommand.AddOption(ignoreOption);
+        diffCommand.AddOption(sensitivePatternsOption);
         diffCommand.AddOption(failOnDiffOption);
         diffCommand.AddOption(failOnChangesOption);
 
@@ -48,6 +50,7 @@ public static class Program
         dirCommand.AddOption(formatOption);
         dirCommand.AddOption(showSecretsOption);
         dirCommand.AddOption(ignoreOption);
+        dirCommand.AddOption(sensitivePatternsOption);
         dirCommand.AddOption(failOnDiffOption);
         dirCommand.AddOption(failOnChangesOption);
 
@@ -60,6 +63,7 @@ public static class Program
         rootCommand.AddOption(formatOption);
         rootCommand.AddOption(showSecretsOption);
         rootCommand.AddOption(ignoreOption);
+        rootCommand.AddOption(sensitivePatternsOption);
         rootCommand.AddOption(failOnDiffOption);
         rootCommand.AddOption(failOnChangesOption);
 
@@ -85,6 +89,7 @@ public static class Program
             Format: context.ParseResult.GetValueForOption(formatOption),
             ShowSecrets: context.ParseResult.GetValueForOption(showSecretsOption),
             IgnorePatterns: context.ParseResult.GetValueForOption(ignoreOption) ?? [],
+            SensitivePatternsFile: context.ParseResult.GetValueForOption(sensitivePatternsOption),
             FailOnDiff: context.ParseResult.GetValueForOption(failOnDiffOption),
             FailOnChanges: context.ParseResult.GetValueForOption(failOnChangesOption));
 
@@ -95,7 +100,7 @@ public static class Program
         return await rootCommand.InvokeAsync(args);
     }
 
-    private sealed record OutputOptions(string? Format, bool ShowSecrets, string[] IgnorePatterns, bool FailOnDiff, bool FailOnChanges);
+    private sealed record OutputOptions(string? Format, bool ShowSecrets, string[] IgnorePatterns, FileInfo? SensitivePatternsFile, bool FailOnDiff, bool FailOnChanges);
 
     private static int Execute(InvocationContext context, Func<int> action)
     {
@@ -104,8 +109,8 @@ public static class Program
             return action();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException
-                                       or NotSupportedException or InvalidOperationException
-                                       or System.Text.Json.JsonException or ArgumentException)
+            or NotSupportedException or InvalidOperationException
+            or System.Text.Json.JsonException or ArgumentException)
         {
             context.Console.Error.Write($"Error: {ex.Message}{Environment.NewLine}");
             return 2;
@@ -117,7 +122,16 @@ public static class Program
         var baseline = ToFlatConfig(LoadConfigFile(baseFile.FullName));
         var target = ToFlatConfig(LoadConfigFile(targetFile.FullName));
 
-        var detector = new SensitiveKeyDetector();
+        SensitiveKeyDetector detector;
+        if (options.SensitivePatternsFile != null && options.SensitivePatternsFile.Exists)
+        {
+            detector = SensitiveKeyDetector.LoadWithCustomPatterns(options.SensitivePatternsFile.FullName);
+        }
+        else
+        {
+            detector = new SensitiveKeyDetector();
+        }
+
         var differ = new ConfigDiffer(detector);
         var result = differ.Diff(baseline, target, options.IgnorePatterns, baseFile.FullName, targetFile.FullName);
 
@@ -138,7 +152,16 @@ public static class Program
         if (environments.Length < 2)
             throw new ArgumentException("At least two environments must be specified via --envs (e.g. --envs Production,Staging).");
 
-        var detector = new SensitiveKeyDetector();
+        SensitiveKeyDetector detector;
+        if (options.SensitivePatternsFile != null && options.SensitivePatternsFile.Exists)
+        {
+            detector = SensitiveKeyDetector.LoadWithCustomPatterns(options.SensitivePatternsFile.FullName);
+        }
+        else
+        {
+            detector = new SensitiveKeyDetector();
+        }
+
         var differ = new ConfigDiffer(detector);
 
         var baselineEnv = environments[0];
