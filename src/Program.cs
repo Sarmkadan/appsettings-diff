@@ -34,6 +34,7 @@ public static class Program
         var sensitivePatternsOption = new Option<FileInfo?>("--sensitive-patterns", "File containing additional sensitive key patterns (one per line, # comments allowed)");
         var failOnDiffOption = new Option<bool>("--fail-on-diff", "Exit with code 1 if differences are found");
         var failOnChangesOption = new Option<bool>("--fail-on-changes", "Exit with code 2 if changes (additions/removals/modifications) are found");
+var maxDepthOption = new Option<int?>("--max-depth", "Maximum depth to compare nested structures (0 = no limit)");
         var noColorOption = new Option<bool>("--no-color", "Disable ANSI color output");
 
         var rootCommand = new RootCommand("Appsettings Diff Tool")
@@ -54,6 +55,7 @@ public static class Program
         diffCommand.AddOption(sensitivePatternsOption);
         diffCommand.AddOption(failOnDiffOption);
         diffCommand.AddOption(failOnChangesOption);
+            diffCommand.AddOption(maxDepthOption);
         diffCommand.AddOption(noColorOption);
 
         // Mode 2: --dir --envs
@@ -68,6 +70,7 @@ public static class Program
         dirCommand.AddOption(ignoreOption);
         dirCommand.AddOption(sensitivePatternsOption);
         dirCommand.AddOption(failOnDiffOption);
+            dirCommand.AddOption(maxDepthOption);
         dirCommand.AddOption(failOnChangesOption);
         dirCommand.AddOption(noColorOption);
 
@@ -83,6 +86,7 @@ public static class Program
         rootCommand.AddOption(sensitivePatternsOption);
         rootCommand.AddOption(failOnDiffOption);
         rootCommand.AddOption(failOnChangesOption);
+            rootCommand.AddOption(maxDepthOption);
         rootCommand.AddOption(noColorOption);
 
         rootCommand.SetHandler((InvocationContext context) =>
@@ -112,6 +116,7 @@ public static class Program
             SensitivePatternsFile: context.ParseResult.GetValueForOption(sensitivePatternsOption),
             FailOnDiff: context.ParseResult.GetValueForOption(failOnDiffOption),
             FailOnChanges: context.ParseResult.GetValueForOption(failOnChangesOption),
+            MaxDepth: context.ParseResult.GetValueForOption(maxDepthOption),
         NoColor: context.ParseResult.GetValueForOption(noColorOption));
 
         return await rootCommand.InvokeAsync(args);
@@ -157,7 +162,7 @@ public static class Program
         }
     }
 
-    private sealed record OutputOptions(string? Format, bool ShowSecrets, string[] IgnorePatterns, FileInfo? SensitivePatternsFile, bool FailOnDiff, bool FailOnChanges, bool NoColor);
+    private sealed record OutputOptions(string? Format, bool ShowSecrets, string[] IgnorePatterns, FileInfo? SensitivePatternsFile, bool FailOnDiff, bool FailOnChanges, int? MaxDepth, bool NoColor);
 
     private static int Execute(InvocationContext context, Func<int> action)
     {
@@ -190,7 +195,8 @@ public static class Program
         }
 
         var differ = new ConfigDiffer(detector);
-        var result = differ.Diff(baseline, target, options.IgnorePatterns, baseFile.FullName, targetFile.FullName);
+        var differOptions = new ConfigDifferOptions { MaxDepth = options.MaxDepth };
+        var result = differ.Diff(baseline, target, options.IgnorePatterns, baseFile.FullName, targetFile.FullName, differOptions);
 
         WriteResult(result, detector, options);
 
@@ -220,6 +226,7 @@ public static class Program
         }
 
         var differ = new ConfigDiffer(detector);
+        var differOptions = new ConfigDifferOptions { MaxDepth = options.MaxDepth };
 
         var baselineEnv = environments[0];
         var baseline = ToFlatConfig(LoadEnvironmentConfig(dir, baselineEnv));
@@ -229,7 +236,7 @@ public static class Program
         foreach (var env in environments.Skip(1))
         {
             var target = ToFlatConfig(LoadEnvironmentConfig(dir, env));
-            var result = differ.Diff(baseline, target, options.IgnorePatterns, baselineEnv, env);
+            var result = differ.Diff(baseline, target, options.IgnorePatterns, baselineEnv, env, differOptions);
 
             WriteResult(result, detector, options);
             anyDifferences |= result.HasDifferences;

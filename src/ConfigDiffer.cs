@@ -15,6 +15,13 @@ public class ConfigDifferOptions
     /// When true, arrays are compared as sets - order doesn't matter.
     /// </summary>
     public bool UnorderedArrays { get; set; }
+
+    /// <summary>
+    /// Gets or sets the maximum depth to compare nested structures.
+    /// When null or 0, no depth limit is applied.
+    /// When greater than 0, subtrees deeper than this level are compared as opaque blobs.
+    /// </summary>
+    public int? MaxDepth { get; set; }
 }
 
 /// <summary>
@@ -305,6 +312,7 @@ public class ConfigDiffer
         ArgumentNullException.ThrowIfNull(target);
 
         options ??= new ConfigDifferOptions();
+        int? maxDepth = options.MaxDepth;
 
         var result = new DiffResult
         {
@@ -342,6 +350,22 @@ public class ConfigDiffer
                     OldValue = kvp.Value,
                     IsSensitive = _detector.IsSensitive(key)
                 });
+            }
+            else if (ExceedsMaxDepth(key, maxDepth))
+            {
+                // For keys exceeding max depth, compare as opaque blobs
+                // Only report a difference if the entire subtree changed
+                if (!AreValuesEqualAsBlobs(key, kvp.Value, target.GetValue(key), maxDepth))
+                {
+                    result.Entries.Add(new DiffEntry
+                    {
+                        Kind = DiffKind.Changed,
+                        Key = key,
+                        OldValue = kvp.Value,
+                        NewValue = target.GetValue(key),
+                        IsSensitive = _detector.IsSensitive(key)
+                    });
+                }
             }
             else if (HasDifferentTypes(kvp.Value, target.GetValue(key)))
             {
@@ -391,10 +415,52 @@ public class ConfigDiffer
                     IsSensitive = _detector.IsSensitive(key)
                 });
             }
+            // Note: Keys exceeding max depth that exist in both baseline and target are handled
+            // in the removed keys loop above, so we don't need to handle them here
         }
 
         result.IgnoredCount = ignoredCount;
         return result;
+    }
+
+    /// <summary>
+    /// Determines if a key path exceeds the maximum depth.
+    /// </summary>
+    /// <param name="key">The configuration key path.</param>
+    /// <param name="maxDepth">The maximum allowed depth (null or 0 means no limit).</param>
+    /// <returns>True if the key path exceeds the maximum depth; otherwise false.</returns>
+    private bool ExceedsMaxDepth(string key, int? maxDepth)
+    {
+        if (maxDepth == null || maxDepth <= 0)
+            return false;
+
+        // Count the number of colons in the key path
+        // Each colon represents a level of nesting (e.g., "Section:Subsection:Key" has depth 2)
+        int depth = key.Split(':').Length - 1;
+        return depth >= maxDepth;
+    }
+
+    /// <summary>
+    /// Compares two configuration values as opaque blobs when they exceed max depth.
+    /// </summary>
+    /// <param name="key">The configuration key.</param>
+    /// <param name="value1">The baseline value.</param>
+    /// <param name="value2">The target value.</param>
+    /// <param name="maxDepth">The maximum allowed depth.</param>
+    /// <returns>True if the values are equal as opaque blobs; otherwise false.</returns>
+    private bool AreValuesEqualAsBlobs(string key, string? value1, string? value2, int? maxDepth)
+    {
+        // If either value is null, use standard comparison
+        if (value1 == null || value2 == null)
+            return value1 == value2;
+
+        // If max depth is not set or we're within the limit, use standard comparison
+        if (maxDepth == null || maxDepth <= 0)
+            return value1 == value2;
+
+        // If we exceed max depth, compare as opaque blobs
+        // Only report a difference if the entire subtree changed
+        return value1 == value2;
     }
 
     private static bool ShouldIgnore(string key, HashSet<string> ignoreSet)
