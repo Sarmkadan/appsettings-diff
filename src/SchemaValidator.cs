@@ -48,6 +48,11 @@ namespace AppsettingsDiff
     public class SchemaValidator
     {
         /// <summary>
+        /// Gets or sets a value indicating whether to report unknown keys (keys present in config but not in schema).
+        /// </summary>
+        public bool ReportUnknownKeys { get; set; } = true;
+
+        /// <summary>
         /// Validates a configuration against a schema and returns a list of schema violations.
         /// </summary>
         /// <param name="config">The configuration to validate.</param>
@@ -63,6 +68,7 @@ namespace AppsettingsDiff
 
             var violations = new List<SchemaViolation>();
 
+            // Check for missing required keys
             foreach (var key in schema.RequiredKeys)
             {
                 if (!config.ContainsKey(key))
@@ -115,7 +121,7 @@ namespace AppsettingsDiff
                             }
                             break;
                         case "url":
-                            if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || 
+                            if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
                                 !uri.Scheme.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                             {
                                 isValid = false;
@@ -147,6 +153,27 @@ namespace AppsettingsDiff
                 }
             }
 
+            // Check for unknown keys (present in config but not in schema)
+            if (ReportUnknownKeys)
+            {
+                var knownKeys = new HashSet<string>(schema.RequiredKeys, StringComparer.OrdinalIgnoreCase);
+                knownKeys.UnionWith(schema.TypeHints.Keys);
+
+                foreach (var key in config.Keys)
+                {
+                    if (!knownKeys.Contains(key, StringComparer.OrdinalIgnoreCase))
+                    {
+                        violations.Add(new SchemaViolation
+                        {
+                            Key = key,
+                            Message = $"Unknown key '{key}' is present in config but not defined in schema",
+                            IsUnknown = true,
+                            IsMissing = false
+                        });
+                    }
+                }
+            }
+
             return violations;
         }
     }
@@ -170,5 +197,10 @@ namespace AppsettingsDiff
         /// Gets a value indicating whether the key is missing.
         /// </summary>
         public bool IsMissing { get; set; }
+
+        /// <summary>
+        /// Gets a value indicating whether the key is unknown (present in config but not in schema).
+        /// </summary>
+        public bool IsUnknown { get; set; }
     }
 }
