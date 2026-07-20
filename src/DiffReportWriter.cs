@@ -111,29 +111,26 @@ public sealed class DiffReportWriter
     }
 
     /// <summary>
-    /// Generates a markdown table suitable for PR comments.
+    /// Writes a markdown table to the provided writer.
     /// Sensitive values are redacted unless <c>showSecrets</c> is true.
     /// </summary>
-    public string ToMarkdown(DiffResult result)
+    public void WriteMarkdown(DiffResult result, TextWriter writer)
     {
         if (result == null) throw new ArgumentNullException(nameof(result));
+        if (writer == null) throw new ArgumentNullException(nameof(writer));
 
-        var sb = new StringBuilder();
-
-        sb.AppendLine($"**Diff between `{result.BasePath}` and `{result.TargetPath}`**");
-        sb.AppendLine();
-        sb.AppendLine("| Kind | Key | Old Value | New Value |");
-        sb.AppendLine("|------|-----|-----------|-----------|");
+        writer.WriteLine($"**Diff between `{result.BasePath}` and `{result.TargetPath}`**");
+        writer.WriteLine();
+        writer.WriteLine("| Kind | Key | Old Value | New Value |");
+        writer.WriteLine("|------|-----|-----------|-----------|");
 
         foreach (var entry in result.Entries)
         {
             var oldVal = EscapeMarkdown(Redact(entry.OldValue, entry.IsSensitive));
             var newVal = EscapeMarkdown(Redact(entry.NewValue, entry.IsSensitive));
 
-            sb.AppendLine($"| {entry.Kind} | `{EscapeMarkdown(entry.Key)}` | {oldVal} | {newVal} |");
+            writer.WriteLine($"| {entry.Kind} | `{EscapeMarkdown(entry.Key)}` | {oldVal} | {newVal} |");
         }
-
-        return sb.ToString();
     }
 
     private string Redact(string? value, bool isSensitive)
