@@ -23,7 +23,7 @@ public static class Program
         var dirOption = new Option<DirectoryInfo>("--dir", "The directory containing configuration files").ExistingOnly();
         var envsOption = new Option<string[]>("--envs", "The environments to compare (comma-separated, e.g. Production,Staging)") { AllowMultipleArgumentsPerToken = true };
 
-        var formatOption = new Option<string?>("--format", "Output format (json, markdown)");
+        var formatOption = new Option<string?>("--format", "Output format (json, markdown, html)");
         var showSecretsOption = new Option<bool>("--show-secrets", "Show sensitive keys");
         var ignoreOption = new Option<string[]>("--ignore", "Glob patterns of keys to ignore") { AllowMultipleArgumentsPerToken = true };
         var sensitivePatternsOption = new Option<FileInfo?>("--sensitive-patterns", "File containing additional sensitive key patterns (one per line, # comments allowed)");
@@ -192,6 +192,8 @@ public static class Program
             Console.WriteLine(writer.ToJson(result));
         else if (options.Format == "markdown")
             writer.WriteMarkdown(result, Console.Out);
+        else if (options.Format == "html")
+            writer.WriteHtml(result, Console.Out);
         else
             writer.WriteConsoleSummary(result);
     }

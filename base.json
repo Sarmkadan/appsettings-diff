@@ -1,0 +1,18 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft": "Warning"
+    },
+    "Console": {
+      "LogLevel": {
+        "Default": "Information"
+      }
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "Default": "Server=localhost;Database=TestDb;User=test;"
+  },
+  "ApiKey": "secret-key-123"
+}

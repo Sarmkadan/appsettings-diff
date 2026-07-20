@@ -1,0 +1,19 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Debug",
+      "Microsoft": "Warning",
+      "System": "Information"
+    },
+    "Console": {
+      "LogLevel": {
+        "Default": "Debug"
+      }
+    }
+  },
+  "AllowedHosts": "0.0.0.0",
+  "ConnectionStrings": {
+    "Default": "Server=prod-db;Database=ProductionDb;User=admin;"
+  },
+  "NewSetting": "value"
+}
