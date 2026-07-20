@@ -12,7 +12,7 @@ public static class Program
     private static readonly string[] SupportedExtensions = [".json", ".yaml", ".yml"];
 
     /// <summary>
-    /// Runs the CLI. Exit codes: 0 on success, 1 when --fail-on-diff is set and differences exist, 2 on errors.
+    /// Runs the CLI. Exit codes: 0 on success, 1 when --fail-on-diff is set and differences exist, 2 on errors or when --fail-on-changes is set and changes exist.
     /// </summary>
     /// <param name="args">Raw command-line arguments.</param>
     public static async Task<int> Main(string[] args)
@@ -28,6 +28,7 @@ public static class Program
         var showSecretsOption = new Option<bool>("--show-secrets", "Show sensitive keys");
         var ignoreOption = new Option<string[]>("--ignore", "Glob patterns of keys to ignore") { AllowMultipleArgumentsPerToken = true };
         var failOnDiffOption = new Option<bool>("--fail-on-diff", "Exit with 1 if differences are found");
+        var failOnChangesOption = new Option<bool>("--fail-on-changes", "Exit with 2 if changes are found");
 
         var rootCommand = new RootCommand("Appsettings Diff Tool");
 
@@ -40,6 +41,7 @@ public static class Program
         diffCommand.AddOption(showSecretsOption);
         diffCommand.AddOption(ignoreOption);
         diffCommand.AddOption(failOnDiffOption);
+        diffCommand.AddOption(failOnChangesOption);
 
         // Mode 2: --dir --envs
         var dirCommand = new Command("dir", "Compare configuration files in a directory");
@@ -50,6 +52,7 @@ public static class Program
         dirCommand.AddOption(showSecretsOption);
         dirCommand.AddOption(ignoreOption);
         dirCommand.AddOption(failOnDiffOption);
+        dirCommand.AddOption(failOnChangesOption);
 
         rootCommand.AddCommand(diffCommand);
         rootCommand.AddCommand(dirCommand);
@@ -62,6 +65,7 @@ public static class Program
         rootCommand.AddOption(showSecretsOption);
         rootCommand.AddOption(ignoreOption);
         rootCommand.AddOption(failOnDiffOption);
+        rootCommand.AddOption(failOnChangesOption);
 
         void HandleDiff(InvocationContext context)
         {
@@ -86,7 +90,8 @@ public static class Program
             Markdown: context.ParseResult.GetValueForOption(markdownOption),
             ShowSecrets: context.ParseResult.GetValueForOption(showSecretsOption),
             IgnorePatterns: context.ParseResult.GetValueForOption(ignoreOption) ?? [],
-            FailOnDiff: context.ParseResult.GetValueForOption(failOnDiffOption));
+            FailOnDiff: context.ParseResult.GetValueForOption(failOnDiffOption),
+            FailOnChanges: context.ParseResult.GetValueForOption(failOnChangesOption));
 
         rootCommand.SetHandler(HandleDiff);
         diffCommand.SetHandler(HandleDiff);
@@ -95,7 +100,7 @@ public static class Program
         return await rootCommand.InvokeAsync(args);
     }
 
-    private sealed record OutputOptions(bool Json, bool Markdown, bool ShowSecrets, string[] IgnorePatterns, bool FailOnDiff);
+    private sealed record OutputOptions(bool Json, bool Markdown, bool ShowSecrets, string[] IgnorePatterns, bool FailOnDiff, bool FailOnChanges);
 
     private static int Execute(InvocationContext context, Func<int> action)
     {
@@ -123,7 +128,7 @@ public static class Program
 
         WriteResult(result, detector, options);
 
-        return options.FailOnDiff && result.HasDifferences ? 1 : 0;
+        return options.FailOnDiff && result.HasDifferences ? 1 : options.FailOnChanges && (result.CountOf(DiffKind.Added) > 0 || result.CountOf(DiffKind.Removed) > 0 || result.CountOf(DiffKind.Changed) > 0) ? 2 : 0;
     }
 
     private static int RunDirectoryDiff(DirectoryInfo? dir, string[]? envs, OutputOptions options)
@@ -145,6 +150,7 @@ public static class Program
         var baseline = ToFlatConfig(LoadEnvironmentConfig(dir, baselineEnv));
 
         var anyDifferences = false;
+        var anyChanges = false;
         foreach (var env in environments.Skip(1))
         {
             var target = ToFlatConfig(LoadEnvironmentConfig(dir, env));
@@ -152,9 +158,12 @@ public static class Program
 
             WriteResult(result, detector, options);
             anyDifferences |= result.HasDifferences;
+            anyChanges |= result.CountOf(DiffKind.Added) > 0 || result.CountOf(DiffKind.Removed) > 0 || result.CountOf(DiffKind.Changed) > 0;
         }
 
-        return options.FailOnDiff && anyDifferences ? 1 : 0;
+        Console.WriteLine($"Differences: {anyDifferences}, Changes: {anyChanges}, Added: {differ.Diff(baseline, ToFlatConfig(LoadEnvironmentConfig(dir, environments[1])), options.IgnorePatterns, baselineEnv, environments[1]).CountOf(DiffKind.Added)}, Removed: {differ.Diff(baseline, ToFlatConfig(LoadEnvironmentConfig(dir, environments[1])), options.IgnorePatterns, baselineEnv, environments[1]).CountOf(DiffKind.Removed)}, Changed: {differ.Diff(baseline, ToFlatConfig(LoadEnvironmentConfig(dir, environments[1])), options.IgnorePatterns, baselineEnv, environments[1]).CountOf(DiffKind.Changed)}");
+
+        return options.FailOnDiff && anyDifferences ? 1 : options.FailOnChanges && anyChanges ? 2 : 0;
     }
 
     private static void WriteResult(DiffResult result, SensitiveKeyDetector detector, OutputOptions options)
