@@ -163,6 +163,11 @@ public class DiffResult
     /// <summary>Counts the entries of the specified <paramref name="kind"/>.</summary>
     /// <param name="kind">The kind of difference to count.</param>
     public int CountOf(DiffKind kind) => Entries.Count(e => e.Kind == kind);
+
+    /// <summary>
+    /// Gets the number of keys that were ignored due to the ignore patterns.
+    /// </summary>
+    public int IgnoredCount { get; set; }
 }
 
 /// <summary>
@@ -218,12 +223,17 @@ public class ConfigDiffer
             }
         }
 
+        int ignoredCount = 0;
+
         // Check for removed keys (in baseline but not in target)
         foreach (var kvp in baseline.Values)
         {
             string key = kvp.Key;
             if (ShouldIgnore(key, ignoreSet))
+            {
+                ignoredCount++;
                 continue;
+            }
 
             if (!target.ContainsKey(key))
             {
@@ -254,7 +264,10 @@ public class ConfigDiffer
         {
             string key = kvp.Key;
             if (ShouldIgnore(key, ignoreSet))
+            {
+                ignoredCount++;
                 continue;
+            }
 
             if (!baseline.ContainsKey(key))
             {
@@ -268,6 +281,7 @@ public class ConfigDiffer
             }
         }
 
+        result.IgnoredCount = ignoredCount;
         return result;
     }
 
