@@ -153,6 +153,28 @@ namespace AppsettingsDiff
                 }
             }
 
+            // Check for keys differing only by casing
+            var normalizedKeys = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var key in config.Keys)
+            {
+                var normalized = key.ToUpperInvariant();
+                if (normalizedKeys.Contains(normalized))
+                {
+                    violations.Add(new SchemaViolation
+                    {
+                        Key = key,
+                        Message = $"Key '{key}' differs only by casing from another key in config. Keys are case-insensitive and should have unique casing.",
+                        IsCasingConflict = true,
+                        IsMissing = false,
+                        IsUnknown = false
+                    });
+                }
+                else
+                {
+                    normalizedKeys.Add(normalized);
+                }
+            }
+
             // Check for unknown keys (present in config but not in schema)
             if (ReportUnknownKeys)
             {
@@ -202,5 +224,10 @@ namespace AppsettingsDiff
         /// Gets a value indicating whether the key is unknown (present in config but not in schema).
         /// </summary>
         public bool IsUnknown { get; set; }
+
+        /// <summary>
+        /// Gets a value indicating whether this is a casing conflict (keys differing only by casing).
+        /// </summary>
+        public bool IsCasingConflict { get; set; }
     }
 }
