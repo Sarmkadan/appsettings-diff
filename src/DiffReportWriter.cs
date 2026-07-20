@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -111,7 +112,8 @@ public sealed class DiffReportWriter
     }
 
     /// <summary>
-    /// Writes a markdown table to the provided writer.
+    /// Writes a GitHub‑flavored markdown report to the supplied writer.
+    /// Includes a summary line and a table with columns: Key | Change | Old | New.
     /// Sensitive values are redacted unless <c>showSecrets</c> is true.
     /// </summary>
     public void WriteMarkdown(DiffResult result, TextWriter writer)
@@ -119,17 +121,25 @@ public sealed class DiffReportWriter
         if (result == null) throw new ArgumentNullException(nameof(result));
         if (writer == null) throw new ArgumentNullException(nameof(writer));
 
-        writer.WriteLine($"**Diff between `{result.BasePath}` and `{result.TargetPath}`**");
+        // Summary line
+        var added = result.CountOf(DiffKind.Added);
+        var removed = result.CountOf(DiffKind.Removed);
+        var changed = result.CountOf(DiffKind.Changed);
+        writer.WriteLine($"**Summary:** Added: {added}, Removed: {removed}, Changed: {changed}");
         writer.WriteLine();
-        writer.WriteLine("| Kind | Key | Old Value | New Value |");
-        writer.WriteLine("|------|-----|-----------|-----------|");
+
+        // Table header
+        writer.WriteLine("| Key | Change | Old | New |");
+        writer.WriteLine("|---|---|---|---|");
 
         foreach (var entry in result.Entries)
         {
+            var key = EscapeMarkdown(entry.Key);
+            var change = EscapeMarkdown(entry.Kind.ToString());
             var oldVal = EscapeMarkdown(Redact(entry.OldValue, entry.IsSensitive));
             var newVal = EscapeMarkdown(Redact(entry.NewValue, entry.IsSensitive));
 
-            writer.WriteLine($"| {entry.Kind} | `{EscapeMarkdown(entry.Key)}` | {oldVal} | {newVal} |");
+            writer.WriteLine($"| {key} | {change} | {oldVal} | {newVal} |");
         }
     }
 
