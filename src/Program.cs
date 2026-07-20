@@ -1,5 +1,9 @@
+using System;
 using System.CommandLine;
 using System.CommandLine.Invocation;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 
 namespace AppsettingsDiff;
@@ -28,13 +32,13 @@ public static class Program
         var dirOption = new Option<DirectoryInfo>("--dir", "The directory containing configuration files").ExistingOnly();
         var envsOption = new Option<string[]>("--envs", "The environments to compare (comma-separated, e.g. Production,Staging)") { AllowMultipleArgumentsPerToken = true };
 
-        var formatOption = new Option<string?>("--format", "Output format (json, markdown, html, jsonpatch)");
+        var formatOption = new Option<string?>("--format", "Output format (json, markdown, html, jsonpatch, summary-json)");
         var showSecretsOption = new Option<bool>("--show-secrets", "Show sensitive keys");
         var ignoreOption = new Option<string[]>("--ignore", "Glob patterns of keys to ignore") { AllowMultipleArgumentsPerToken = true };
         var sensitivePatternsOption = new Option<FileInfo?>("--sensitive-patterns", "File containing additional sensitive key patterns (one per line, # comments allowed)");
         var failOnDiffOption = new Option<bool>("--fail-on-diff", "Exit with code 1 if differences are found");
         var failOnChangesOption = new Option<bool>("--fail-on-changes", "Exit with code 2 if changes (additions/removals/modifications) are found");
-var maxDepthOption = new Option<int?>("--max-depth", "Maximum depth to compare nested structures (0 = no limit)");
+        var maxDepthOption = new Option<int?>("--max-depth", "Maximum depth to compare nested structures (0 = no limit)");
         var noColorOption = new Option<bool>("--no-color", "Disable ANSI color output");
 
         var rootCommand = new RootCommand("Appsettings Diff Tool")
@@ -55,7 +59,7 @@ var maxDepthOption = new Option<int?>("--max-depth", "Maximum depth to compare n
         diffCommand.AddOption(sensitivePatternsOption);
         diffCommand.AddOption(failOnDiffOption);
         diffCommand.AddOption(failOnChangesOption);
-            diffCommand.AddOption(maxDepthOption);
+        diffCommand.AddOption(maxDepthOption);
         diffCommand.AddOption(noColorOption);
 
         // Mode 2: --dir --envs
@@ -70,7 +74,7 @@ var maxDepthOption = new Option<int?>("--max-depth", "Maximum depth to compare n
         dirCommand.AddOption(ignoreOption);
         dirCommand.AddOption(sensitivePatternsOption);
         dirCommand.AddOption(failOnDiffOption);
-            dirCommand.AddOption(maxDepthOption);
+        dirCommand.AddOption(maxDepthOption);
         dirCommand.AddOption(failOnChangesOption);
         dirCommand.AddOption(noColorOption);
 
@@ -86,7 +90,7 @@ var maxDepthOption = new Option<int?>("--max-depth", "Maximum depth to compare n
         rootCommand.AddOption(sensitivePatternsOption);
         rootCommand.AddOption(failOnDiffOption);
         rootCommand.AddOption(failOnChangesOption);
-            rootCommand.AddOption(maxDepthOption);
+        rootCommand.AddOption(maxDepthOption);
         rootCommand.AddOption(noColorOption);
 
         rootCommand.SetHandler((InvocationContext context) =>
@@ -117,7 +121,7 @@ var maxDepthOption = new Option<int?>("--max-depth", "Maximum depth to compare n
             FailOnDiff: context.ParseResult.GetValueForOption(failOnDiffOption),
             FailOnChanges: context.ParseResult.GetValueForOption(failOnChangesOption),
             MaxDepth: context.ParseResult.GetValueForOption(maxDepthOption),
-        NoColor: context.ParseResult.GetValueForOption(noColorOption));
+            NoColor: context.ParseResult.GetValueForOption(noColorOption));
 
         return await rootCommand.InvokeAsync(args);
     }
@@ -256,10 +260,30 @@ var maxDepthOption = new Option<int?>("--max-depth", "Maximum depth to compare n
             writer.WriteMarkdown(result, Console.Out);
         else if (options.Format == "html")
             writer.WriteHtml(result, Console.Out);
-    else if (options.Format == "jsonpatch")
-        Console.WriteLine(writer.ToJsonPatch(result));
-    else
-        writer.WriteConsole(result, options.NoColor);
+        else if (options.Format == "jsonpatch")
+            Console.WriteLine(writer.ToJsonPatch(result));
+        else if (options.Format == "summary-json")
+        {
+            var summary = new
+            {
+                added = result.Entries
+                    .Where(e => e.Kind == DiffKind.Added)
+                    .Select(e => e.Key)
+                    .ToArray(),
+                removed = result.Entries
+                    .Where(e => e.Kind == DiffKind.Removed)
+                    .Select(e => e.Key)
+                    .ToArray(),
+                changed = result.Entries
+                    .Where(e => e.Kind == DiffKind.Changed)
+                    .Select(e => e.Key)
+                    .ToArray()
+            };
+            var json = JsonSerializer.Serialize(summary);
+            Console.WriteLine(json);
+        }
+        else
+            writer.WriteConsole(result, options.NoColor);
     }
 
     /// <summary>
