@@ -6,6 +6,18 @@ using System.Linq;
 namespace AppsettingsDiff;
 
 /// <summary>
+/// Options for configuring the diff operation
+/// </summary>
+public class ConfigDifferOptions
+{
+    /// <summary>
+    /// Gets or sets a value indicating whether to compare arrays by value-set (unordered) instead of by index.
+    /// When true, arrays are compared as sets - order doesn't matter.
+    /// </summary>
+    public bool UnorderedArrays { get; set; }
+}
+
+/// <summary>
 /// Detects sensitive keys in configuration
 /// </summary>
 public class SensitiveKeyDetector
@@ -225,7 +237,9 @@ public class DiffResult
     /// <summary>Gets a value indicating whether any differences were found.</summary>
     public bool HasDifferences => Entries.Count > 0;
 
-    /// <summary>Counts the entries of the specified <paramref name="kind"/>.</summary>
+    /// <summary>
+    /// Counts the entries of the specified <paramref name="kind"/>.
+    /// </summary>
     /// <param name="kind">The kind of difference to count.</param>
     public int CountOf(DiffKind kind) => Entries.Count(e => e.Kind == kind);
 
@@ -261,6 +275,7 @@ public class ConfigDiffer
     /// <param name="ignoreKeys">Optional key patterns to skip; supports <c>*</c> wildcards, otherwise matched as a case-insensitive substring.</param>
     /// <param name="basePath">Optional identifier for the baseline (e.g. a file path) recorded in the result.</param>
     /// <param name="targetPath">Optional identifier for the target (e.g. a file path) recorded in the result.</param>
+    /// <param name="options">Optional configuration options for the diff operation.</param>
     /// <returns>A <see cref="DiffResult"/> describing the differences.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="baseline"/> or <paramref name="target"/> is <see langword="null"/>.</exception>
     public DiffResult Diff(
@@ -268,10 +283,13 @@ public class ConfigDiffer
         FlatConfig target,
         IEnumerable<string>? ignoreKeys = null,
         string? basePath = null,
-        string? targetPath = null)
+        string? targetPath = null,
+        ConfigDifferOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(baseline);
         ArgumentNullException.ThrowIfNull(target);
+
+        options ??= new ConfigDifferOptions();
 
         var result = new DiffResult
         {
@@ -310,7 +328,7 @@ public class ConfigDiffer
                     IsSensitive = _detector.IsSensitive(key)
                 });
             }
-            else if (target.GetValue(key) != kvp.Value)
+            else if (!AreValuesEqual(kvp.Value, target.GetValue(key), options))
             {
                 // Check if changed
                 result.Entries.Add(new DiffEntry
@@ -359,5 +377,96 @@ public class ConfigDiffer
             pattern.Contains('*')
                 ? KeyPatternMatcher.IsMatch(key, pattern)
                 : key.Contains(pattern, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Compares two configuration values for equality, with special handling for arrays when unordered comparison is enabled.
+    /// </summary>
+    /// <param name="value1">The first value to compare.</param>
+    /// <param name="value2">The second value to compare.</param>
+    /// <param name="options">The diff options that may enable unordered array comparison.</param>
+    /// <returns>True if the values are equal; otherwise false.</returns>
+    private bool AreValuesEqual(string? value1, string? value2, ConfigDifferOptions options)
+    {
+        // If either value is null, use standard comparison
+        if (value1 == null || value2 == null)
+            return value1 == value2;
+
+        // If unordered array comparison is not enabled, use standard comparison
+        if (!options.UnorderedArrays)
+            return value1 == value2;
+
+        // Check if both values represent arrays (contain array index notation like [0], [1], etc.)
+        if (IsArrayValue(value1) && IsArrayValue(value2))
+        {
+            // Extract array keys (e.g., "MyArray[0]" -> "MyArray")
+            var arrayKey1 = ExtractArrayKey(value1);
+            var arrayKey2 = ExtractArrayKey(value2);
+
+            // If they're not the same array, use standard comparison
+            if (!string.Equals(arrayKey1, arrayKey2, StringComparison.OrdinalIgnoreCase))
+                return value1 == value2;
+
+            // Extract all values for each array
+            var values1 = ExtractArrayValues(value1);
+            var values2 = ExtractArrayValues(value2);
+
+            // Compare as sets (unordered)
+            return values1.SetEquals(values2);
+        }
+
+        // Standard string comparison for non-arrays or mixed types
+        return value1 == value2;
+    }
+
+    /// <summary>
+    /// Determines if a value represents an array element (contains array index notation).
+    /// </summary>
+    /// <param name="value">The value to check.</param>
+    /// <returns>True if the value is an array element; otherwise false.</returns>
+    private static bool IsArrayValue(string value)
+    {
+        return value.Contains('[') && value.EndsWith(']');
+    }
+
+    /// <summary>
+    /// Extracts the base array key from an array element key (e.g., "MyArray[0]" -> "MyArray").
+    /// </summary>
+    /// <param name="arrayElementKey">The array element key.</param>
+    /// <returns>The base array key.</returns>
+    private static string ExtractArrayKey(string arrayElementKey)
+    {
+        int bracketIndex = arrayElementKey.IndexOf('[');
+        if (bracketIndex < 0)
+            return arrayElementKey;
+
+        return arrayElementKey.Substring(0, bracketIndex);
+    }
+
+    /// <summary>
+    /// Extracts all values from an array representation.
+    /// For "MyArray[0]:value1\nMyArray[1]:value2", returns {"value1", "value2"}.
+    /// </summary>
+    /// <param name="arrayText">The text containing array elements.</param>
+    /// <returns>A set of array values.</returns>
+    private static HashSet<string> ExtractArrayValues(string arrayText)
+    {
+        var values = new HashSet<string>(StringComparer.Ordinal);
+
+        // Split by newlines to get individual array elements
+        var lines = arrayText.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var line in lines)
+        {
+            // Find the colon that separates key from value
+            int colonIndex = line.IndexOf(':');
+            if (colonIndex > 0)
+            {
+                string value = line.Substring(colonIndex + 1).Trim();
+                values.Add(value);
+            }
+        }
+
+        return values;
     }
 }
