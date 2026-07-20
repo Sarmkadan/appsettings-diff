@@ -153,6 +153,24 @@ namespace AppsettingsDiff
                 }
             }
 
+        // Lint pass: Check for connection strings with credentials in config values
+        foreach (var key in config.Keys)
+        {
+            if (schema.TypeHints.ContainsKey(key) || schema.RequiredKeys.Contains(key))
+            {
+                var value = config[key];
+                if (ContainsConnectionStringCredentials(value))
+                {
+                    violations.Add(new SchemaViolation
+                    {
+                        Key = key,
+                        Message = $"Configuration value contains a connection string with credentials (detected Password= or pwd= pattern)",
+                        IsSensitive = true
+                    });
+                }
+            }
+        }
+
             // Check for keys differing only by casing
             var normalizedKeys = new HashSet<string>(StringComparer.Ordinal);
             foreach (var key in config.Keys)
@@ -198,6 +216,21 @@ namespace AppsettingsDiff
 
             return violations;
         }
+
+    /// <summary>
+    /// Determines whether the given configuration value contains a connection string with credentials.
+    /// Checks for patterns like 'Password=' or 'pwd=' in the value.
+    /// </summary>
+    /// <param name="value">The configuration value to check.</param>
+    /// <returns><see langword="true"/> if the value contains a connection string with credentials; otherwise <see langword="false"/>.</returns>
+    private static bool ContainsConnectionStringCredentials(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        var lowerValue = value.ToLowerInvariant();
+        return lowerValue.Contains("password=") || lowerValue.Contains("pwd=");
+    }
     }
 
     /// <summary>
@@ -229,5 +262,10 @@ namespace AppsettingsDiff
         /// Gets a value indicating whether this is a casing conflict (keys differing only by casing).
         /// </summary>
         public bool IsCasingConflict { get; set; }
+
+    /// <summary>
+    /// Gets a value indicating whether the violation is related to sensitive data (e.g., connection strings with passwords).
+    /// </summary>
+    public bool IsSensitive { get; set; }
     }
 }
