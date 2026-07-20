@@ -57,7 +57,7 @@ public sealed class DiffReportWriter
     /// TypeChanged – magenta
     /// Sensitive values are redacted unless <c>showSecrets</c> is true.
     /// </summary>
-    public void WriteConsole(DiffResult result)
+    public void WriteConsole(DiffResult result, bool noColor = false)
     {
         if (result == null) throw new ArgumentNullException(nameof(result));
 
@@ -80,6 +80,12 @@ public sealed class DiffReportWriter
 
             var oldVal = Redact(entry.OldValue, entry.IsSensitive);
             var newVal = Redact(entry.NewValue, entry.IsSensitive);
+
+            // Auto-disable colors when output is redirected or --no-color flag is set
+            if (noColor || Console.IsOutputRedirected)
+            {
+                colour = ConsoleColor.Gray;
+            }
 
             var originalColour = Console.ForegroundColor;
             Console.ForegroundColor = colour;

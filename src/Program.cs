@@ -34,6 +34,7 @@ public static class Program
         var sensitivePatternsOption = new Option<FileInfo?>("--sensitive-patterns", "File containing additional sensitive key patterns (one per line, # comments allowed)");
         var failOnDiffOption = new Option<bool>("--fail-on-diff", "Exit with code 1 if differences are found");
         var failOnChangesOption = new Option<bool>("--fail-on-changes", "Exit with code 2 if changes (additions/removals/modifications) are found");
+        var noColorOption = new Option<bool>("--no-color", "Disable ANSI color output");
 
         var rootCommand = new RootCommand("Appsettings Diff Tool")
         {
@@ -53,6 +54,7 @@ public static class Program
         diffCommand.AddOption(sensitivePatternsOption);
         diffCommand.AddOption(failOnDiffOption);
         diffCommand.AddOption(failOnChangesOption);
+        diffCommand.AddOption(noColorOption);
 
         // Mode 2: --dir --envs
         var dirCommand = new Command("dir", "Compare configuration files in a directory")
@@ -67,6 +69,7 @@ public static class Program
         dirCommand.AddOption(sensitivePatternsOption);
         dirCommand.AddOption(failOnDiffOption);
         dirCommand.AddOption(failOnChangesOption);
+        dirCommand.AddOption(noColorOption);
 
         rootCommand.AddCommand(diffCommand);
         rootCommand.AddCommand(dirCommand);
@@ -80,6 +83,7 @@ public static class Program
         rootCommand.AddOption(sensitivePatternsOption);
         rootCommand.AddOption(failOnDiffOption);
         rootCommand.AddOption(failOnChangesOption);
+        rootCommand.AddOption(noColorOption);
 
         rootCommand.SetHandler((InvocationContext context) =>
         {
@@ -107,7 +111,8 @@ public static class Program
             IgnorePatterns: context.ParseResult.GetValueForOption(ignoreOption) ?? [],
             SensitivePatternsFile: context.ParseResult.GetValueForOption(sensitivePatternsOption),
             FailOnDiff: context.ParseResult.GetValueForOption(failOnDiffOption),
-            FailOnChanges: context.ParseResult.GetValueForOption(failOnChangesOption));
+            FailOnChanges: context.ParseResult.GetValueForOption(failOnChangesOption),
+        NoColor: context.ParseResult.GetValueForOption(noColorOption));
 
         return await rootCommand.InvokeAsync(args);
     }
@@ -152,7 +157,7 @@ public static class Program
         }
     }
 
-    private sealed record OutputOptions(string? Format, bool ShowSecrets, string[] IgnorePatterns, FileInfo? SensitivePatternsFile, bool FailOnDiff, bool FailOnChanges);
+    private sealed record OutputOptions(string? Format, bool ShowSecrets, string[] IgnorePatterns, FileInfo? SensitivePatternsFile, bool FailOnDiff, bool FailOnChanges, bool NoColor);
 
     private static int Execute(InvocationContext context, Func<int> action)
     {
@@ -247,7 +252,7 @@ public static class Program
     else if (options.Format == "jsonpatch")
         Console.WriteLine(writer.ToJsonPatch(result));
     else
-        writer.WriteConsoleSummary(result);
+        writer.WriteConsole(result, options.NoColor);
     }
 
     /// <summary>
