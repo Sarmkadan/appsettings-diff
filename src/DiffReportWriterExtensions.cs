@@ -6,11 +6,11 @@ using System.Text;
 namespace AppsettingsDiff;
 
 /// <summary>
-/// Extension methods for <see cref="DiffReportWriter"/> that provide additional
+/// Extension methods for <see cref="IDiffReportWriter"/> that provide additional
 /// convenience methods for working with diff results.
 /// </summary>
 /// <remarks>
-/// These extension methods delegate to the underlying <see cref="DiffReportWriter"/> instance
+/// These extension methods delegate to the underlying <see cref="IDiffReportWriter"/> instance
 /// while providing a more fluent API surface for common operations.
 /// </remarks>
 public static class DiffReportWriterExtensions
@@ -19,10 +19,10 @@ public static class DiffReportWriterExtensions
     /// Writes a summary of differences to the console with counts by type.
     /// Includes a summary header showing total changes and breakdown by type.
     /// </summary>
-    /// <param name="writer">The <see cref="DiffReportWriter"/> instance.</param>
+    /// <param name="writer">The <see cref="IDiffReportWriter"/> instance.</param>
     /// <param name="result">The diff result to write.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="writer"/> or <paramref name="result"/> is <see langword="null"/>.</exception>
-    public static void WriteConsoleSummary(this DiffReportWriter writer, DiffResult result)
+    public static void WriteConsoleSummary(this IDiffReportWriter writer, DiffResult result)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(result);
@@ -53,12 +53,12 @@ public static class DiffReportWriterExtensions
     /// Useful for logging or embedding in other JSON structures.
     /// Sensitive values are redacted unless <paramref name="showSecrets"/> is true.
     /// </summary>
-    /// <param name="writer">The <see cref="DiffReportWriter"/> instance.</param>
+    /// <param name="writer">The <see cref="IDiffReportWriter"/> instance.</param>
     /// <param name="result">The diff result to serialize.</param>
     /// <param name="showSecrets">Whether to include sensitive values in the output.</param>
     /// <returns>A compact JSON representation.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="writer"/> or <paramref name="result"/> is <see langword="null"/>.</exception>
-    public static string ToCompactJson(this DiffReportWriter writer, DiffResult result, bool showSecrets = false)
+    public static string ToCompactJson(this IDiffReportWriter writer, DiffResult result, bool showSecrets = false)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(result);
@@ -90,11 +90,11 @@ public static class DiffReportWriterExtensions
     /// Generates a markdown summary table showing only the counts and statistics.
     /// Useful for brief overview in documentation or README files.
     /// </summary>
-    /// <param name="writer">The <see cref="DiffReportWriter"/> instance.</param>
+    /// <param name="writer">The <see cref="IDiffReportWriter"/> instance.</param>
     /// <param name="result">The diff result to format.</param>
     /// <returns>A markdown formatted summary.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="writer"/> or <paramref name="result"/> is <see langword="null"/>.</exception>
-    public static string ToMarkdownSummary(this DiffReportWriter writer, DiffResult result)
+    public static string ToMarkdownSummary(this IDiffReportWriter writer, DiffResult result)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(result);
@@ -141,11 +141,11 @@ public static class DiffReportWriterExtensions
     /// <summary>
     /// Checks if there are any differences in the result.
     /// </summary>
-    /// <param name="writer">The <see cref="DiffReportWriter"/> instance.</param>
+    /// <param name="writer">The <see cref="IDiffReportWriter"/> instance.</param>
     /// <param name="result">The diff result to check.</param>
     /// <returns>True if there are differences, false otherwise.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="writer"/> or <paramref name="result"/> is <see langword="null"/>.</exception>
-    public static bool HasDifferences(this DiffReportWriter writer, DiffResult result)
+    public static bool HasDifferences(this IDiffReportWriter writer, DiffResult result)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(result);
@@ -156,11 +156,11 @@ public static class DiffReportWriterExtensions
     /// <summary>
     /// Gets the total number of differences.
     /// </summary>
-    /// <param name="writer">The <see cref="DiffReportWriter"/> instance.</param>
+    /// <param name="writer">The <see cref="IDiffReportWriter"/> instance.</param>
     /// <param name="result">The diff result to count.</param>
     /// <returns>The total count of differences.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="writer"/> or <paramref name="result"/> is <see langword="null"/>.</exception>
-    public static int GetTotalDifferenceCount(this DiffReportWriter writer, DiffResult result)
+    public static int GetTotalDifferenceCount(this IDiffReportWriter writer, DiffResult result)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(result);
@@ -168,7 +168,7 @@ public static class DiffReportWriterExtensions
         return result.Entries.Count;
     }
 
-    private static string Redact(DiffReportWriter writer, string? value, bool isSensitive, bool showSecrets)
+    private static string Redact(IDiffReportWriter writer, string? value, bool isSensitive, bool showSecrets)
     {
         ArgumentNullException.ThrowIfNull(writer);
 

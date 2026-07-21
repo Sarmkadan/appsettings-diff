@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace AppsettingsDiff;
 
 /// <summary>
-/// Provides System.Text.Json serialization extensions for <see cref="DiffReportWriter"/>.
+/// Provides System.Text.Json serialization extensions for <see cref="IDiffReportWriter"/>.
 /// </summary>
 public static class DiffReportWriterJsonExtensions
 {
@@ -15,14 +15,14 @@ public static class DiffReportWriterJsonExtensions
     };
 
     /// <summary>
-    /// Serializes a diff result to JSON using the specified <see cref="DiffReportWriter"/> instance.
+    /// Serializes a diff result to JSON using the specified <see cref="IDiffReportWriter"/> instance.
     /// </summary>
-    /// <param name="writer">The <see cref="DiffReportWriter"/> instance used for serialization configuration</param>
+    /// <param name="writer">The <see cref="IDiffReportWriter"/> instance used for serialization configuration</param>
     /// <param name="result">The diff result to serialize</param>
     /// <param name="indented">Whether to format the JSON with indentation for readability</param>
     /// <returns>A JSON representation of the diff result</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="writer"/> or <paramref name="result"/> is null</exception>
-    public static string ToJson(this DiffReportWriter writer, DiffResult result, bool indented = false)
+    public static string ToJson(this IDiffReportWriter writer, DiffResult result, bool indented = false)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(result);

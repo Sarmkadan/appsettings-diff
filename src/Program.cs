@@ -262,7 +262,7 @@ rootCommand.AddOption(pathOption);
 
     private static void WriteResult(DiffResult result, SensitiveKeyDetector detector, OutputOptions options)
     {
-        var writer = new DiffReportWriter(detector, options.ShowSecrets, options.MaskSensitive);
+        var writer = DiffReportWriterFactory.Create(options.Format, detector, options.ShowSecrets, options.MaskSensitive);
 
         if (options.Format == "json")
             Console.WriteLine(writer.ToJson(result));
