@@ -22,6 +22,12 @@ public class ConfigDifferOptions
     /// When greater than 0, subtrees deeper than this level are compared as opaque blobs.
     /// </summary>
     public int? MaxDepth { get; set; }
+
+    /// <summary>
+    /// Gets or sets the path prefix to filter keys by.
+    /// When set, only keys starting with this prefix will be compared.
+    /// </summary>
+    public string? PathPrefix { get; set; }
 }
 
 /// <summary>
@@ -313,6 +319,7 @@ public class ConfigDiffer
 
         options ??= new ConfigDifferOptions();
         int? maxDepth = options.MaxDepth;
+        string? pathPrefix = options.PathPrefix;
 
         var result = new DiffResult
         {
@@ -336,6 +343,13 @@ public class ConfigDiffer
         {
             string key = kvp.Key;
             if (ShouldIgnore(key, ignoreSet))
+            {
+                ignoredCount++;
+                continue;
+            }
+
+            // Skip keys that don't match the path prefix
+            if (!MatchesPathPrefix(key, pathPrefix))
             {
                 ignoredCount++;
                 continue;
@@ -400,6 +414,13 @@ public class ConfigDiffer
         {
             string key = kvp.Key;
             if (ShouldIgnore(key, ignoreSet))
+            {
+                ignoredCount++;
+                continue;
+            }
+
+            // Skip keys that don't match the path prefix
+            if (!MatchesPathPrefix(key, pathPrefix))
             {
                 ignoredCount++;
                 continue;
@@ -574,6 +595,20 @@ public class ConfigDiffer
         var type1 = DetectJsonType(value1);
         var type2 = DetectJsonType(value2);
         return type1 != type2;
+    }
+
+    /// <summary>
+    /// Determines if a key matches the path prefix filter.
+    /// </summary>
+    /// <param name="key">The configuration key to check.</param>
+    /// <param name="pathPrefix">The path prefix to filter by (null or empty means no filtering).</param>
+    /// <returns>True if the key matches the prefix filter; otherwise false.</returns>
+    private bool MatchesPathPrefix(string key, string? pathPrefix)
+    {
+        if (string.IsNullOrEmpty(pathPrefix))
+            return true;
+
+        return key.StartsWith(pathPrefix, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

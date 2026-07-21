@@ -1,0 +1,18 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "System": "Warning",
+      "Microsoft": "Warning"
+    },
+    "EnableConsole": true
+  },
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost;Database=test;User=admin",
+    "BackupConnection": "Server=backup;Database=test"
+  },
+  "AppSettings": {
+    "FeatureEnabled": true,
+    "MaxRetries": 3
+  }
+}

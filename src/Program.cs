@@ -40,6 +40,7 @@ var maskSensitiveOption = new Option<bool>("--mask-sensitive", "Mask sensitive v
         var failOnDiffOption = new Option<bool>("--fail-on-diff", "Exit with code 1 if differences are found");
         var failOnChangesOption = new Option<bool>("--fail-on-changes", "Exit with code 2 if changes (additions/removals/modifications) are found");
         var maxDepthOption = new Option<int?>("--max-depth", "Maximum depth to compare nested structures (0 = no limit)");
+var pathOption = new Option<string?>("--path", "Only compare keys under the given key-path prefix (e.g. Logging:LogLevel)");
         var noColorOption = new Option<bool>("--no-color", "Disable ANSI color output");
 
         var rootCommand = new RootCommand("Appsettings Diff Tool")
@@ -62,6 +63,7 @@ var maskSensitiveOption = new Option<bool>("--mask-sensitive", "Mask sensitive v
         diffCommand.AddOption(failOnDiffOption);
         diffCommand.AddOption(failOnChangesOption);
         diffCommand.AddOption(maxDepthOption);
+    diffCommand.AddOption(pathOption);
         diffCommand.AddOption(noColorOption);
 
         // Mode 2: --dir --envs
@@ -78,6 +80,7 @@ var maskSensitiveOption = new Option<bool>("--mask-sensitive", "Mask sensitive v
         dirCommand.AddOption(sensitivePatternsOption);
         dirCommand.AddOption(failOnDiffOption);
         dirCommand.AddOption(maxDepthOption);
+    dirCommand.AddOption(pathOption);
         dirCommand.AddOption(failOnChangesOption);
         dirCommand.AddOption(noColorOption);
 
@@ -95,6 +98,7 @@ var maskSensitiveOption = new Option<bool>("--mask-sensitive", "Mask sensitive v
         rootCommand.AddOption(failOnDiffOption);
         rootCommand.AddOption(failOnChangesOption);
         rootCommand.AddOption(maxDepthOption);
+rootCommand.AddOption(pathOption);
         rootCommand.AddOption(noColorOption);
 
         rootCommand.SetHandler((InvocationContext context) =>
@@ -126,6 +130,7 @@ var maskSensitiveOption = new Option<bool>("--mask-sensitive", "Mask sensitive v
             FailOnDiff: context.ParseResult.GetValueForOption(failOnDiffOption),
             FailOnChanges: context.ParseResult.GetValueForOption(failOnChangesOption),
             MaxDepth: context.ParseResult.GetValueForOption(maxDepthOption),
+    PathPrefix: context.ParseResult.GetValueForOption(pathOption),
             NoColor: context.ParseResult.GetValueForOption(noColorOption));
 
         return await rootCommand.InvokeAsync(args);
@@ -171,7 +176,7 @@ var maskSensitiveOption = new Option<bool>("--mask-sensitive", "Mask sensitive v
         }
     }
 
-    private sealed record OutputOptions(string? Format, bool ShowSecrets, bool MaskSensitive, string[] IgnorePatterns, FileInfo? SensitivePatternsFile, bool FailOnDiff, bool FailOnChanges, int? MaxDepth, bool NoColor);
+    private sealed record OutputOptions(string? Format, bool ShowSecrets, bool MaskSensitive, string[] IgnorePatterns, FileInfo? SensitivePatternsFile, bool FailOnDiff, bool FailOnChanges, int? MaxDepth, string? PathPrefix, bool NoColor);
 
     private static int Execute(InvocationContext context, Func<int> action)
     {
@@ -204,7 +209,7 @@ var maskSensitiveOption = new Option<bool>("--mask-sensitive", "Mask sensitive v
         }
 
         var differ = new ConfigDiffer(detector);
-        var differOptions = new ConfigDifferOptions { MaxDepth = options.MaxDepth };
+        var differOptions = new ConfigDifferOptions { MaxDepth = options.MaxDepth, PathPrefix = options.PathPrefix };
         var result = differ.Diff(baseline, target, options.IgnorePatterns, baseFile.FullName, targetFile.FullName, differOptions);
 
         WriteResult(result, detector, options);
@@ -235,7 +240,7 @@ var maskSensitiveOption = new Option<bool>("--mask-sensitive", "Mask sensitive v
         }
 
         var differ = new ConfigDiffer(detector);
-        var differOptions = new ConfigDifferOptions { MaxDepth = options.MaxDepth };
+        var differOptions = new ConfigDifferOptions { MaxDepth = options.MaxDepth, PathPrefix = options.PathPrefix };
 
         var baselineEnv = environments[0];
         var baseline = ToFlatConfig(LoadEnvironmentConfig(dir, baselineEnv));
