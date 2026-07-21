@@ -34,6 +34,7 @@ public static class Program
 
         var formatOption = new Option<string?>("--format", "Output format (json, markdown, html, jsonpatch, summary-json)");
         var showSecretsOption = new Option<bool>("--show-secrets", "Show sensitive keys");
+var maskSensitiveOption = new Option<bool>("--mask-sensitive", "Mask sensitive values with *** instead of showing [REDACTED]");
         var ignoreOption = new Option<string[]>("--ignore", "Glob patterns of keys to ignore") { AllowMultipleArgumentsPerToken = true };
         var sensitivePatternsOption = new Option<FileInfo?>("--sensitive-patterns", "File containing additional sensitive key patterns (one per line, # comments allowed)");
         var failOnDiffOption = new Option<bool>("--fail-on-diff", "Exit with code 1 if differences are found");
@@ -55,6 +56,7 @@ public static class Program
         diffCommand.AddArgument(targetArgument);
         diffCommand.AddOption(formatOption);
         diffCommand.AddOption(showSecretsOption);
+            diffCommand.AddOption(maskSensitiveOption);
         diffCommand.AddOption(ignoreOption);
         diffCommand.AddOption(sensitivePatternsOption);
         diffCommand.AddOption(failOnDiffOption);
@@ -71,6 +73,7 @@ public static class Program
         dirCommand.AddOption(envsOption);
         dirCommand.AddOption(formatOption);
         dirCommand.AddOption(showSecretsOption);
+            dirCommand.AddOption(maskSensitiveOption);
         dirCommand.AddOption(ignoreOption);
         dirCommand.AddOption(sensitivePatternsOption);
         dirCommand.AddOption(failOnDiffOption);
@@ -86,6 +89,7 @@ public static class Program
         rootCommand.AddArgument(targetArgument);
         rootCommand.AddOption(formatOption);
         rootCommand.AddOption(showSecretsOption);
+            rootCommand.AddOption(maskSensitiveOption);
         rootCommand.AddOption(ignoreOption);
         rootCommand.AddOption(sensitivePatternsOption);
         rootCommand.AddOption(failOnDiffOption);
@@ -116,6 +120,7 @@ public static class Program
         OutputOptions ReadOutputOptions(InvocationContext context) => new(
             Format: context.ParseResult.GetValueForOption(formatOption),
             ShowSecrets: context.ParseResult.GetValueForOption(showSecretsOption),
+            MaskSensitive: context.ParseResult.GetValueForOption(maskSensitiveOption),
             IgnorePatterns: context.ParseResult.GetValueForOption(ignoreOption) ?? [],
             SensitivePatternsFile: context.ParseResult.GetValueForOption(sensitivePatternsOption),
             FailOnDiff: context.ParseResult.GetValueForOption(failOnDiffOption),
@@ -166,7 +171,7 @@ public static class Program
         }
     }
 
-    private sealed record OutputOptions(string? Format, bool ShowSecrets, string[] IgnorePatterns, FileInfo? SensitivePatternsFile, bool FailOnDiff, bool FailOnChanges, int? MaxDepth, bool NoColor);
+    private sealed record OutputOptions(string? Format, bool ShowSecrets, bool MaskSensitive, string[] IgnorePatterns, FileInfo? SensitivePatternsFile, bool FailOnDiff, bool FailOnChanges, int? MaxDepth, bool NoColor);
 
     private static int Execute(InvocationContext context, Func<int> action)
     {
@@ -252,7 +257,7 @@ public static class Program
 
     private static void WriteResult(DiffResult result, SensitiveKeyDetector detector, OutputOptions options)
     {
-        var writer = new DiffReportWriter(detector, options.ShowSecrets);
+        var writer = new DiffReportWriter(detector, options.ShowSecrets, options.MaskSensitive);
 
         if (options.Format == "json")
             Console.WriteLine(writer.ToJson(result));

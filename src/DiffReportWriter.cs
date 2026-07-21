@@ -34,6 +34,7 @@ public sealed class DiffReportWriter
 {
     private readonly SensitiveKeyDetector _detector;
     private readonly bool _showSecrets;
+    private readonly bool _maskSensitive;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DiffReportWriter"/> class.
@@ -41,12 +42,13 @@ public sealed class DiffReportWriter
     /// <param name="detector">Detector used to identify sensitive keys.</param>
     /// <param name="showSecrets">When <see langword="true"/>, sensitive values are written verbatim instead of redacted.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="detector"/> is <see langword="null"/>.</exception>
-    public DiffReportWriter(SensitiveKeyDetector detector, bool showSecrets = false)
+    public DiffReportWriter(SensitiveKeyDetector detector, bool showSecrets = false, bool maskSensitive = false)
     {
         ArgumentNullException.ThrowIfNull(detector);
 
         _detector = detector;
         _showSecrets = showSecrets;
+    _maskSensitive = maskSensitive;
     }
 
     /// <summary>
@@ -202,7 +204,7 @@ public sealed class DiffReportWriter
     private string Redact(string? value, bool isSensitive)
     {
         if (isSensitive && !_showSecrets)
-            return "[REDACTED]";
+            return _maskSensitive ? "***" : "[REDACTED]";
 
         return value ?? string.Empty;
     }
