@@ -115,7 +115,7 @@ public sealed class JsonPatchDiffReportWriter : IDiffReportWriter
 
         foreach (var entry in result.Entries)
         {
-            var path = EscapeJsonPointer(entry.Key);
+            var path = JsonPatchOperation.FromConfigKey(entry.Key);
             var value = entry.IsSensitive && !_showSecrets
                 ? "[REDACTED]"
                 : (entry.Kind == DiffKind.Removed ? entry.OldValue : entry.NewValue) ?? string.Empty;
@@ -174,11 +174,4 @@ public sealed class JsonPatchDiffReportWriter : IDiffReportWriter
         return value ?? string.Empty;
     }
 
-    private static string EscapeJsonPointer(string path)
-    {
-        // JSON Pointer requires ~ to be encoded as ~0 and / to be encoded as ~1
-        return path
-            .Replace("~", "~0")
-            .Replace("/", "~1");
-    }
 }
