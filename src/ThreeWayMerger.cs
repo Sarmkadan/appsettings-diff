@@ -50,6 +50,13 @@ public sealed class MergeConflict
     /// Gets a value indicating whether this conflict was automatically resolved.
     /// </summary>
     public bool AutoResolved { get; init; }
+
+    /// <summary>
+    /// Gets a human-readable explanation of why this conflict was recorded, if any.
+    /// This is set for conflicts that arise from special handling (such as whole-array
+    /// merges) rather than a plain scalar value mismatch.
+    /// </summary>
+    public string? Reason { get; init; }
 }
 
 /// <summary>
@@ -127,8 +134,38 @@ public static class ThreeWayMerger
         allKeys.UnionWith(ours.Keys);
         allKeys.UnionWith(theirs.Keys);
 
+        // Group keys that belong to a flattened array (e.g. "Section:0", "Section:1:Name")
+        // by their array root ("Section"). These are merged as whole units below instead of
+        // being merged key-by-key, because index shifts (insert/delete/reorder) on one side
+        // make positional keys line up with unrelated elements on the other side.
+        var arrayGroups = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         foreach (var key in allKeys)
         {
+            var arrayRoot = DetectArrayRoot(key);
+            if (arrayRoot is null)
+                continue;
+
+            if (!arrayGroups.TryGetValue(arrayRoot, out var groupKeys))
+            {
+                groupKeys = new List<string>();
+                arrayGroups[arrayRoot] = groupKeys;
+            }
+
+            groupKeys.Add(key);
+        }
+
+        var arrayKeys = new HashSet<string>(arrayGroups.Values.SelectMany(k => k), StringComparer.Ordinal);
+
+        foreach (var (arrayRoot, groupKeys) in arrayGroups)
+        {
+            MergeArrayGroup(arrayRoot, groupKeys, baseConfig, ours, theirs, strategy, merged, conflicts);
+        }
+
+        foreach (var key in allKeys)
+        {
+            if (arrayKeys.Contains(key))
+                continue;
+
             var baseValue = baseConfig.TryGetValue(key, out var bv) ? bv : null;
             var ourValue = ours.TryGetValue(key, out var ov) ? ov : null;
             var theirValue = theirs.TryGetValue(key, out var tv) ? tv : null;
@@ -204,4 +241,174 @@ public static class ThreeWayMerger
             Conflicts = conflicts.AsReadOnly()
         };
     }
+
+    /// <summary>
+    /// Determines whether a flattened configuration key is part of an array element
+    /// (i.e. it contains a purely numeric colon-separated segment representing an
+    /// array index) and, if so, returns the key path preceding that index - the
+    /// "array root". Returns <see langword="null"/> when the key does not belong to
+    /// an array.
+    /// </summary>
+    /// <param name="key">The flattened configuration key to inspect.</param>
+    /// <returns>
+    /// The array root path (which may be an empty string for a top-level array), or
+    /// <see langword="null"/> if <paramref name="key"/> contains no numeric index segment.
+    /// </returns>
+    private static string? DetectArrayRoot(string key)
+    {
+        var segments = key.Split(':');
+        for (var i = 0; i < segments.Length; i++)
+        {
+            if (segments[i].Length > 0 && segments[i].All(char.IsAsciiDigit))
+                return string.Join(':', segments.Take(i));
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Merges a single flattened array (all keys sharing an array root) as one atomic
+    /// unit rather than key-by-key, so that index shifts caused by an insert, delete or
+    /// reorder on either side cannot be misread as unrelated per-index conflicts or
+    /// silently produce duplicated/misaligned elements.
+    /// </summary>
+    /// <param name="arrayRoot">The array root path shared by all keys in <paramref name="groupKeys"/>.</param>
+    /// <param name="groupKeys">All keys (from any of the three sides) that belong to this array.</param>
+    /// <param name="baseConfig">The base configuration.</param>
+    /// <param name="ours">Our local configuration.</param>
+    /// <param name="theirs">Their remote configuration.</param>
+    /// <param name="strategy">The conflict resolution strategy to use when both sides changed the array.</param>
+    /// <param name="merged">The merged dictionary being built; winning entries are written into it.</param>
+    /// <param name="conflicts">The conflict list being built; an array-level conflict is appended to it when both sides diverge.</param>
+    private static void MergeArrayGroup(
+        string arrayRoot,
+        List<string> groupKeys,
+        Dictionary<string, string> baseConfig,
+        Dictionary<string, string> ours,
+        Dictionary<string, string> theirs,
+        ConflictResolutionStrategy strategy,
+        Dictionary<string, string> merged,
+        List<MergeConflict> conflicts)
+    {
+        var baseSlice = Slice(baseConfig, groupKeys);
+        var ourSlice = Slice(ours, groupKeys);
+        var theirSlice = Slice(theirs, groupKeys);
+
+        var baseEqualsOurs = SliceEquals(baseSlice, ourSlice);
+        var baseEqualsTheirs = SliceEquals(baseSlice, theirSlice);
+        var oursEqualsTheirs = SliceEquals(ourSlice, theirSlice);
+
+        if (baseEqualsOurs && baseEqualsTheirs)
+        {
+            WriteSlice(merged, ourSlice);
+            return;
+        }
+
+        if (baseEqualsOurs)
+        {
+            // Only theirs changed the array - take their side as a whole.
+            WriteSlice(merged, theirSlice);
+            return;
+        }
+
+        if (baseEqualsTheirs)
+        {
+            // Only ours changed the array - take our side as a whole.
+            WriteSlice(merged, ourSlice);
+            return;
+        }
+
+        if (oursEqualsTheirs)
+        {
+            // Both sides made the identical change to the array.
+            WriteSlice(merged, ourSlice);
+            return;
+        }
+
+        // Both sides changed the array differently (insert/delete/reorder on either or
+        // both sides). Positional per-index comparison is unsafe here because a shifted
+        // index can make an inserted element line up against an unrelated pre-existing
+        // one, so the whole array is treated as a conflicting unit rather than merged
+        // element-by-element.
+        var autoResolved = false;
+
+        switch (strategy)
+        {
+            case ConflictResolutionStrategy.Manual:
+                // Default to our side for backward compatibility with scalar conflicts.
+                WriteSlice(merged, ourSlice);
+                break;
+
+            case ConflictResolutionStrategy.PreferOurs:
+                WriteSlice(merged, ourSlice);
+                autoResolved = true;
+                break;
+
+            case ConflictResolutionStrategy.PreferTheirs:
+                WriteSlice(merged, theirSlice);
+                autoResolved = true;
+                break;
+        }
+
+        conflicts.Add(new MergeConflict
+        {
+            Key = arrayRoot,
+            BaseValue = SerializeSlice(baseSlice),
+            OurValue = SerializeSlice(ourSlice),
+            TheirValue = SerializeSlice(theirSlice),
+            AutoResolved = autoResolved,
+            Reason = "Both sides modified array elements under this key (insert, delete or reorder). " +
+                     "Flattened array indices are not stable across such changes, so the array was " +
+                     "merged as a whole value instead of per-index to avoid misaligned or duplicated elements."
+        });
+    }
+
+    /// <summary>
+    /// Extracts the subset of a configuration dictionary restricted to a given set of keys.
+    /// </summary>
+    /// <param name="config">The configuration dictionary to slice.</param>
+    /// <param name="keys">The keys to extract.</param>
+    /// <returns>A dictionary containing only the entries from <paramref name="config"/> whose key is in <paramref name="keys"/>.</returns>
+    private static Dictionary<string, string> Slice(Dictionary<string, string> config, List<string> keys)
+    {
+        var slice = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var key in keys)
+        {
+            if (config.TryGetValue(key, out var value))
+                slice[key] = value;
+        }
+
+        return slice;
+    }
+
+    /// <summary>
+    /// Determines whether two array slices contain exactly the same set of key/value pairs.
+    /// </summary>
+    /// <param name="left">The first slice to compare.</param>
+    /// <param name="right">The second slice to compare.</param>
+    /// <returns><see langword="true"/> if both slices have identical keys and values; otherwise <see langword="false"/>.</returns>
+    private static bool SliceEquals(Dictionary<string, string> left, Dictionary<string, string> right) =>
+        left.Count == right.Count &&
+        left.All(kv => right.TryGetValue(kv.Key, out var value) && value == kv.Value);
+
+    /// <summary>
+    /// Writes every entry of an array slice into the merged dictionary.
+    /// </summary>
+    /// <param name="merged">The merged dictionary being built.</param>
+    /// <param name="slice">The winning slice whose entries should be written.</param>
+    private static void WriteSlice(Dictionary<string, string> merged, Dictionary<string, string> slice)
+    {
+        foreach (var (key, value) in slice)
+            merged[key] = value;
+    }
+
+    /// <summary>
+    /// Serializes an array slice into a deterministic, human-readable string for display in a <see cref="MergeConflict"/>.
+    /// </summary>
+    /// <param name="slice">The slice to serialize.</param>
+    /// <returns>A semicolon-separated "key=value" representation ordered by key, or <see langword="null"/> if the slice is empty.</returns>
+    private static string? SerializeSlice(Dictionary<string, string> slice) =>
+        slice.Count == 0
+            ? null
+            : string.Join(';', slice.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => $"{kv.Key}={kv.Value}"));
 }
