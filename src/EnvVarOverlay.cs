@@ -13,6 +13,8 @@ public static class EnvVarOverlay
     /// <returns>Словарь переменных окружения.</returns>
     public static Dictionary<string, string> ReadFromEnvironment(string? prefix = null)
     {
+        ArgumentNullException.ThrowIfNull(prefix);
+
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
@@ -59,6 +61,9 @@ public static class EnvVarOverlay
             // Замена '__' на ':'
             key = key.Replace("__", ":", StringComparison.Ordinal);
 
+            // Удаление повторяющихся двоеточий
+            key = key.Replace("::", ":", StringComparison.Ordinal);
+
             result[key] = value;
         }
 
@@ -75,34 +80,6 @@ public static class EnvVarOverlay
     /// <exception cref="ArgumentNullException">Если <paramref name="config"/> или <paramref name="envVars"/> равен <see langword="null"/>.</exception>
     public static Dictionary<string, string> Apply(Dictionary<string, string> config, IDictionary<string, string> envVars, out List<string> overriddenKeys)
     {
-        // Backward‑compatible overload – behaves like the original implementation (no custom prefix).
-        return Apply(config, envVars, null, out overriddenKeys);
-    }
-
-    /// <summary>
-    /// Накладывает переменные окружения поверх конфигурации без получения списка перекрытых ключей.
-    /// </summary>
-    public static Dictionary<string, string> Apply(Dictionary<string, string> config, IDictionary<string, string> envVars)
-    {
-        // Backward‑compatible overload – behaves like the original implementation (no custom prefix).
-        return Apply(config, envVars, null);
-    }
-
-    /// <summary>
-    /// Накладывает переменные окружения поверх конфигурации, используя опциональный префикс.
-    /// </summary>
-    /// <param name="config">Исходная конфигурация.</param>
-    /// <param name="envVars">Переменные окружения для наложения.</param>
-    /// <param name="prefix">
-    /// Префикс, который должен присутствовать у переменной окружения.
-    /// Если <c>null</c> или пустой, применяется прежнее поведение (все переменные).
-    /// Префикс будет удалён перед нормализацией.
-    /// </param>
-    /// <param name="overriddenKeys">Список ключей, которые были перекрыты (выходной параметр).</param>
-    /// <returns>Новая конфигурация с применёнными переменными окружения.</returns>
-    /// <exception cref="ArgumentNullException">Если <paramref name="config"/> или <paramref name="envVars"/> равен <see langword="null"/>.</exception>
-    public static Dictionary<string, string> Apply(Dictionary<string, string> config, IDictionary<string, string> envVars, string? prefix, out List<string> overriddenKeys)
-    {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(envVars);
 
@@ -113,19 +90,15 @@ public static class EnvVarOverlay
             string key = entry.Key;
             string value = entry.Value;
 
-            if (!string.IsNullOrEmpty(prefix))
+            if (!string.IsNullOrEmpty(key))
             {
-                if (!key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                if (key.Contains("__", StringComparison.Ordinal))
                 {
-                    // Skip variables that do not match the custom prefix
-                    continue;
+                    key = key.Replace("__", ":", StringComparison.Ordinal);
                 }
 
-                // Strip the custom prefix
-                key = key[prefix.Length..];
+                prefixed[key] = value;
             }
-
-            prefixed[key] = value;
         }
 
         // Apply the existing normalization (ASP.NET Core prefixes and '__' handling)
@@ -153,8 +126,57 @@ public static class EnvVarOverlay
     /// <summary>
     /// Накладывает переменные окружения поверх конфигурации, используя опциональный префикс.
     /// </summary>
-    public static Dictionary<string, string> Apply(Dictionary<string, string> config, IDictionary<string, string> envVars, string? prefix)
+    public static Dictionary<string, string> Apply(Dictionary<string, string> config, IDictionary<string, string> envVars, string? prefix, out List<string> overriddenKeys)
     {
-        return Apply(config, envVars, prefix, out _);
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentNullException.ThrowIfNull(envVars);
+
+        // Filter and strip the custom prefix (if any)
+        var prefixed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in envVars)
+        {
+            string key = entry.Key;
+            string value = entry.Value;
+
+            if (!string.IsNullOrEmpty(prefix))
+            {
+                if (!key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Skip variables that do not match the custom prefix
+                    continue;
+                }
+
+                // Strip the custom prefix
+                key = key[prefix.Length..];
+            }
+
+            if (key.Contains("__", StringComparison.Ordinal))
+            {
+                key = key.Replace("__", ":", StringComparison.Ordinal);
+            }
+
+            prefixed[key] = value;
+        }
+
+        // Apply the existing normalization (ASP.NET Core prefixes and '__' handling)
+        var normalized = Normalize(prefixed);
+
+        overriddenKeys = [];
+        var result = new Dictionary<string, string>(config, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var entry in normalized)
+        {
+            string key = entry.Key;
+            string value = entry.Value;
+
+            if (result.TryGetValue(key, out _))
+            {
+                overriddenKeys.Add(key);
+            }
+
+            result[key] = value;
+        }
+
+        return result;
     }
 }
