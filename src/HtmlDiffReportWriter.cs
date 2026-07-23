@@ -7,12 +7,8 @@ namespace AppsettingsDiff;
 /// <summary>
 /// Writes diff results as self-contained HTML reports with inline CSS styling.
 /// </summary>
-public sealed class HtmlDiffReportWriter : IDiffReportWriter
+public sealed class HtmlDiffReportWriter : DiffReportWriterBase
 {
-    private readonly SensitiveKeyDetector _detector;
-    private readonly bool _showSecrets;
-    private readonly bool _maskSensitive;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="HtmlDiffReportWriter"/> class.
     /// </summary>
@@ -21,31 +17,22 @@ public sealed class HtmlDiffReportWriter : IDiffReportWriter
     /// <param name="maskSensitive">When <see langword="true"/>, sensitive values are masked with *** instead of showing [REDACTED].</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="detector"/> is <see langword="null"/>.</exception>
     public HtmlDiffReportWriter(SensitiveKeyDetector detector, bool showSecrets = false, bool maskSensitive = false)
+        : base(detector, showSecrets, maskSensitive)
     {
-        ArgumentNullException.ThrowIfNull(detector);
-
-        _detector = detector;
-        _showSecrets = showSecrets;
-        _maskSensitive = maskSensitive;
     }
 
     /// <summary>
     /// Writes a colour‑coded table to the console.
     /// </summary>
-    public void WriteConsole(DiffResult result, bool noColor = false)
+    public override void WriteConsole(DiffResult result, bool noColor = false)
     {
         throw new NotSupportedException("HtmlDiffReportWriter only supports HTML output. Use ConsoleDiffReportWriter for console output.");
     }
 
     /// <summary>
-    /// Serialises the diff result to indented JSON.
-    /// </summary>
-    public string ToJson(DiffResult result) => ToJson(result, indented: true);
-
-    /// <summary>
     /// Serialises the diff result to JSON, indented or compact.
     /// </summary>
-    public string ToJson(DiffResult result, bool indented)
+    public override string ToJson(DiffResult result, bool indented)
     {
         ArgumentNullException.ThrowIfNull(result);
 
@@ -77,7 +64,7 @@ public sealed class HtmlDiffReportWriter : IDiffReportWriter
     /// <summary>
     /// Writes a GitHub‑flavored markdown report to the supplied writer.
     /// </summary>
-    public void WriteMarkdown(DiffResult result, TextWriter writer)
+    public override void WriteMarkdown(DiffResult result, TextWriter writer)
     {
         throw new NotSupportedException("HtmlDiffReportWriter only supports HTML output. Use MarkdownDiffReportWriter for markdown output.");
     }
@@ -91,7 +78,7 @@ public sealed class HtmlDiffReportWriter : IDiffReportWriter
     /// TypeChanged – purple background
     /// Sensitive values are redacted unless <c>showSecrets</c> is true.
     /// </summary>
-    public void WriteHtml(DiffResult result, TextWriter writer)
+    public override void WriteHtml(DiffResult result, TextWriter writer)
     {
         if (result == null) throw new ArgumentNullException(nameof(result));
         if (writer == null) throw new ArgumentNullException(nameof(writer));
@@ -204,17 +191,9 @@ public sealed class HtmlDiffReportWriter : IDiffReportWriter
     /// <summary>
     /// Generates a JSON Patch (RFC 6902) representation of the diff.
     /// </summary>
-    public string ToJsonPatch(DiffResult result)
+    public override string ToJsonPatch(DiffResult result)
     {
         throw new NotSupportedException("HtmlDiffReportWriter does not support JSON Patch output. Use JsonPatchDiffReportWriter for JSON Patch output.");
-    }
-
-    private string Redact(string? value, bool isSensitive)
-    {
-        if (isSensitive && !_showSecrets)
-            return _maskSensitive ? "***" : "[REDACTED]";
-
-        return value ?? string.Empty;
     }
 
     private string EscapeHtml(string text)
