@@ -48,7 +48,7 @@ public static class Program
         var dirOption = new Option<DirectoryInfo>("--dir", "The directory containing configuration files").ExistingOnly();
         var envsOption = new Option<string[]>("--envs", "The environments to compare (comma-separated, e.g. Production,Staging)") { AllowMultipleArgumentsPerToken = true };
 
-        var formatOption = new Option<string?>("--format", "Output format (json, markdown, html, jsonpatch, summary-json)");
+        var formatOption = new Option<string?>("--format", "Output format (" + string.Join(", ", DiffReportWriterRegistry.GetRegisteredFormats()) + ")");
         var showSecretsOption = new Option<bool>("--show-secrets", "Show sensitive keys");
         var maskSensitiveOption = new Option<bool>("--mask-sensitive", "Mask sensitive values with *** instead of showing [REDACTED]");
         var ignoreOption = new Option<string[]>("--ignore", "Glob patterns of keys to ignore") { AllowMultipleArgumentsPerToken = true };
@@ -318,51 +318,32 @@ public static class Program
         return anyFail ? 1 : 0;
     }
 
-    private static void WriteResult(DiffResult result, List<SchemaViolation> schemaViolations, SensitiveKeyDetector detector, OutputOptions options)
+private static void WriteResult(DiffResult result, List<SchemaViolation> schemaViolations, SensitiveKeyDetector detector, OutputOptions options)
+{
+    var writer = DiffReportWriterFactory.Create(options.Format, detector, options.ShowSecrets, options.MaskSensitive);
+    var formatWriter = DiffReportWriterRegistry.GetFormatWriter(options.Format);
+
+    if (formatWriter != null)
     {
-        var writer = DiffReportWriterFactory.Create(options.Format, detector, options.ShowSecrets, options.MaskSensitive);
+        formatWriter(writer, result, schemaViolations, options.NoColor);
+    }
+    else
+    {
+        // Fallback to console output if format writer not found
+        writer.WriteConsole(result, options.NoColor);
+    }
 
-        if (options.Format == "json")
-            Console.WriteLine(writer.ToJson(result));
-        else if (options.Format == "markdown")
-            writer.WriteMarkdown(result, Console.Out);
-        else if (options.Format == "html")
-            writer.WriteHtml(result, Console.Out);
-        else if (options.Format == "jsonpatch")
-            Console.WriteLine(writer.ToJsonPatch(result));
-        else if (options.Format == "summary-json")
+    if (schemaViolations.Count > 0)
+    {
+        Console.WriteLine();
+        Console.WriteLine("SCHEMA VIOLATIONS:");
+        foreach (var v in schemaViolations)
         {
-            var summary = new
-            {
-                added = result.Entries
-                    .Where(e => e.Kind == DiffKind.Added)
-                    .Select(e => e.Key)
-                    .ToArray(),
-                removed = result.Entries
-                    .Where(e => e.Kind == DiffKind.Removed)
-                    .Select(e => e.Key)
-                    .ToArray(),
-                changed = result.Entries
-                    .Where(e => e.Kind == DiffKind.Changed)
-                    .Select(e => e.Key)
-                    .ToArray()
-            };
-            var json = JsonSerializer.Serialize(summary);
-            Console.WriteLine(json);
-        }
-        else
-            writer.WriteConsole(result, options.NoColor);
-
-        if (schemaViolations.Count > 0)
-        {
-            Console.WriteLine();
-            Console.WriteLine("SCHEMA VIOLATIONS:");
-            foreach (var v in schemaViolations)
-            {
-                Console.WriteLine($"- {v.Key}: {v.Message}");
-            }
+            Console.WriteLine($"- {v.Key}: {v.Message}");
         }
     }
+}
+
 
     /// <summary>
     /// Loads a configuration file (JSON, YAML, or .env) into a flat key-value dictionary

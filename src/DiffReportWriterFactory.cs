@@ -4,13 +4,16 @@ namespace AppsettingsDiff;
 
 /// <summary>
 /// Factory for creating <see cref="IDiffReportWriter"/> instances based on format name.
+///
+/// <para>This factory delegates to <see cref="DiffReportWriterRegistry"/> for format resolution,
+/// making it easy to extend with new writers by registering them in the registry.</para>
 /// </summary>
 public static class DiffReportWriterFactory
 {
     /// <summary>
     /// Creates an appropriate <see cref="IDiffReportWriter"/> based on the format name.
     /// </summary>
-    /// <param name="format">The output format name (json, markdown, html, jsonpatch, summary-json, or null for console).</param>
+    /// <param name="format">The output format name (console, json, markdown, html, jsonpatch, summary-json, or null for console).</param>
     /// <param name="detector">The sensitive key detector.</param>
     /// <param name="showSecrets">Whether to show sensitive values.</param>
     /// <param name="maskSensitive">Whether to mask sensitive values with *** instead of [REDACTED].</param>
@@ -18,16 +21,6 @@ public static class DiffReportWriterFactory
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="detector"/> is <see langword="null"/>.</exception>
     public static IDiffReportWriter Create(string? format, SensitiveKeyDetector detector, bool showSecrets = false, bool maskSensitive = false)
     {
-        ArgumentNullException.ThrowIfNull(detector);
-
-        return format?.ToLowerInvariant() switch
-        {
-            "json" => new ConsoleDiffReportWriter(detector, showSecrets, maskSensitive),
-            "markdown" => new MarkdownDiffReportWriter(detector, showSecrets, maskSensitive),
-            "html" => new HtmlDiffReportWriter(detector, showSecrets, maskSensitive),
-            "jsonpatch" => new JsonPatchDiffReportWriter(detector, showSecrets, maskSensitive),
-            "summary-json" => new SummaryJsonDiffReportWriter(detector, showSecrets, maskSensitive),
-            _ => new ConsoleDiffReportWriter(detector, showSecrets, maskSensitive) // default to console
-        };
+        return DiffReportWriterRegistry.Create(format, detector, showSecrets, maskSensitive);
     }
 }
