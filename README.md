@@ -2,6 +2,29 @@
 
 Diff appsettings across environments and finds keys missing between them.
 
+## CLI Usage
+
+```bash
+  appsettings-diff [OPTIONS] <base> <target>
+  appsettings-diff diff [OPTIONS] <base> <target>
+  appsettings-diff dir [OPTIONS] --dir <DIRECTORY> --envs <ENV1,ENV2,...>
+```
+
+### EXIT CODES
+
+  0  Success: No differences or violations found
+  1  Failure: Differences or violations found according to --fail-on
+  2  Error: Bad arguments, missing files, or other errors
+
+### OPTIONS
+
+  --fail-on <missing|any|schema-violation>
+    Which categories cause a non-zero exit code.
+  --schema <FILE>
+    JSON schema file for validation.
+
+---
+
 ## DiffReportWriter
 
 The `DiffReportWriter` class generates human-readable reports from configuration diff results. It supports console output with color coding, JSON serialization, and Markdown table generation. Sensitive values are automatically redacted unless explicitly configured otherwise.

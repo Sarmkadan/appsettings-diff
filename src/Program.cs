@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.IO;
@@ -7,6 +8,21 @@ using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 
 namespace AppsettingsDiff;
+
+/// <summary>
+/// Categories for determining whether to fail the process.
+/// </summary>
+public enum FailOn
+{
+    /// <summary> Do not fail on any issue. </summary>
+    None,
+    /// <summary> Fail on missing keys. </summary>
+    Missing,
+    /// <summary> Fail on any difference. </summary>
+    Any,
+    /// <summary> Fail on schema violations. </summary>
+    SchemaViolation
+}
 
 /// <summary>
 /// Command-line entry point for the appsettings diff tool.
@@ -19,8 +35,8 @@ public static class Program
     /// Runs the CLI.
     ///
     /// Exit codes:
-    /// 0 - Success: No differences found or successful execution
-    /// 1 - Differences found: When --fail-on-diff is set and differences exist
+    /// 0 - Success: No differences or violations found
+    /// 1 - Failure: Differences or violations found according to --fail-on
     /// 2 - Error: Bad arguments, missing files, or other errors
     /// </summary>
     /// <param name="args">Raw command-line arguments.</param>
@@ -34,13 +50,13 @@ public static class Program
 
         var formatOption = new Option<string?>("--format", "Output format (json, markdown, html, jsonpatch, summary-json)");
         var showSecretsOption = new Option<bool>("--show-secrets", "Show sensitive keys");
-var maskSensitiveOption = new Option<bool>("--mask-sensitive", "Mask sensitive values with *** instead of showing [REDACTED]");
+        var maskSensitiveOption = new Option<bool>("--mask-sensitive", "Mask sensitive values with *** instead of showing [REDACTED]");
         var ignoreOption = new Option<string[]>("--ignore", "Glob patterns of keys to ignore") { AllowMultipleArgumentsPerToken = true };
         var sensitivePatternsOption = new Option<FileInfo?>("--sensitive-patterns", "File containing additional sensitive key patterns (one per line, # comments allowed)");
-        var failOnDiffOption = new Option<bool>("--fail-on-diff", "Exit with code 1 if differences are found");
-        var failOnChangesOption = new Option<bool>("--fail-on-changes", "Exit with code 2 if changes (additions/removals/modifications) are found");
+        var failOnOption = new Option<FailOn>("--fail-on", "Which categories cause a non-zero exit code (missing|any|schema-violation)");
+        var schemaOption = new Option<FileInfo?>("--schema", "JSON schema file for validation").ExistingOnly();
         var maxDepthOption = new Option<int?>("--max-depth", "Maximum depth to compare nested structures (0 = no limit)");
-var pathOption = new Option<string?>("--path", "Only compare keys under the given key-path prefix (e.g. Logging:LogLevel)");
+        var pathOption = new Option<string?>("--path", "Only compare keys under the given key-path prefix (e.g. Logging:LogLevel)");
         var noColorOption = new Option<bool>("--no-color", "Disable ANSI color output");
 
         var rootCommand = new RootCommand("Appsettings Diff Tool")
@@ -57,13 +73,13 @@ var pathOption = new Option<string?>("--path", "Only compare keys under the give
         diffCommand.AddArgument(targetArgument);
         diffCommand.AddOption(formatOption);
         diffCommand.AddOption(showSecretsOption);
-            diffCommand.AddOption(maskSensitiveOption);
+        diffCommand.AddOption(maskSensitiveOption);
         diffCommand.AddOption(ignoreOption);
         diffCommand.AddOption(sensitivePatternsOption);
-        diffCommand.AddOption(failOnDiffOption);
-        diffCommand.AddOption(failOnChangesOption);
+        diffCommand.AddOption(failOnOption);
+        diffCommand.AddOption(schemaOption);
         diffCommand.AddOption(maxDepthOption);
-    diffCommand.AddOption(pathOption);
+        diffCommand.AddOption(pathOption);
         diffCommand.AddOption(noColorOption);
 
         // Mode 2: --dir --envs
@@ -75,13 +91,13 @@ var pathOption = new Option<string?>("--path", "Only compare keys under the give
         dirCommand.AddOption(envsOption);
         dirCommand.AddOption(formatOption);
         dirCommand.AddOption(showSecretsOption);
-            dirCommand.AddOption(maskSensitiveOption);
+        dirCommand.AddOption(maskSensitiveOption);
         dirCommand.AddOption(ignoreOption);
         dirCommand.AddOption(sensitivePatternsOption);
-        dirCommand.AddOption(failOnDiffOption);
+        dirCommand.AddOption(failOnOption);
+        dirCommand.AddOption(schemaOption);
         dirCommand.AddOption(maxDepthOption);
-    dirCommand.AddOption(pathOption);
-        dirCommand.AddOption(failOnChangesOption);
+        dirCommand.AddOption(pathOption);
         dirCommand.AddOption(noColorOption);
 
         rootCommand.AddCommand(diffCommand);
@@ -92,13 +108,13 @@ var pathOption = new Option<string?>("--path", "Only compare keys under the give
         rootCommand.AddArgument(targetArgument);
         rootCommand.AddOption(formatOption);
         rootCommand.AddOption(showSecretsOption);
-            rootCommand.AddOption(maskSensitiveOption);
+        rootCommand.AddOption(maskSensitiveOption);
         rootCommand.AddOption(ignoreOption);
         rootCommand.AddOption(sensitivePatternsOption);
-        rootCommand.AddOption(failOnDiffOption);
-        rootCommand.AddOption(failOnChangesOption);
+        rootCommand.AddOption(failOnOption);
+        rootCommand.AddOption(schemaOption);
         rootCommand.AddOption(maxDepthOption);
-rootCommand.AddOption(pathOption);
+        rootCommand.AddOption(pathOption);
         rootCommand.AddOption(noColorOption);
 
         rootCommand.SetHandler((InvocationContext context) =>
@@ -127,10 +143,10 @@ rootCommand.AddOption(pathOption);
             MaskSensitive: context.ParseResult.GetValueForOption(maskSensitiveOption),
             IgnorePatterns: context.ParseResult.GetValueForOption(ignoreOption) ?? [],
             SensitivePatternsFile: context.ParseResult.GetValueForOption(sensitivePatternsOption),
-            FailOnDiff: context.ParseResult.GetValueForOption(failOnDiffOption),
-            FailOnChanges: context.ParseResult.GetValueForOption(failOnChangesOption),
+            FailOn: context.ParseResult.GetValueForOption(failOnOption),
+            SchemaFile: context.ParseResult.GetValueForOption(schemaOption),
             MaxDepth: context.ParseResult.GetValueForOption(maxDepthOption),
-    PathPrefix: context.ParseResult.GetValueForOption(pathOption),
+            PathPrefix: context.ParseResult.GetValueForOption(pathOption),
             NoColor: context.ParseResult.GetValueForOption(noColorOption));
 
         return await rootCommand.InvokeAsync(args);
@@ -149,8 +165,8 @@ rootCommand.AddOption(pathOption);
         console.WriteLine("  appsettings-diff dir [OPTIONS] --dir <DIRECTORY> --envs <ENV1,ENV2,...>");
         console.WriteLine();
         console.WriteLine("EXIT CODES:");
-        console.WriteLine("  0  Success: No differences found or successful execution");
-        console.WriteLine("  1  Differences found: When --fail-on-diff is set and differences exist");
+        console.WriteLine("  0  Success: No differences or violations found");
+        console.WriteLine("  1  Failure: Differences or violations found according to --fail-on");
         console.WriteLine("  2  Error: Bad arguments, missing files, or other errors");
         console.WriteLine();
         console.WriteLine("OPTIONS:");
@@ -176,7 +192,7 @@ rootCommand.AddOption(pathOption);
         }
     }
 
-    private sealed record OutputOptions(string? Format, bool ShowSecrets, bool MaskSensitive, string[] IgnorePatterns, FileInfo? SensitivePatternsFile, bool FailOnDiff, bool FailOnChanges, int? MaxDepth, string? PathPrefix, bool NoColor);
+    private sealed record OutputOptions(string? Format, bool ShowSecrets, bool MaskSensitive, string[] IgnorePatterns, FileInfo? SensitivePatternsFile, FailOn FailOn, FileInfo? SchemaFile, int? MaxDepth, string? PathPrefix, bool NoColor);
 
     private static int Execute(InvocationContext context, Func<int> action)
     {
@@ -195,6 +211,9 @@ rootCommand.AddOption(pathOption);
 
     private static int RunFileDiff(FileInfo baseFile, FileInfo targetFile, OutputOptions options)
     {
+        ArgumentNullException.ThrowIfNull(baseFile);
+        ArgumentNullException.ThrowIfNull(targetFile);
+
         var baseline = ToFlatConfig(LoadConfigFile(baseFile.FullName));
         var target = ToFlatConfig(LoadConfigFile(targetFile.FullName));
 
@@ -212,9 +231,39 @@ rootCommand.AddOption(pathOption);
         var differOptions = new ConfigDifferOptions { MaxDepth = options.MaxDepth, PathPrefix = options.PathPrefix };
         var result = differ.Diff(baseline, target, options.IgnorePatterns, baseFile.FullName, targetFile.FullName, differOptions);
 
-        WriteResult(result, detector, options);
+        var schemaViolations = new List<SchemaViolation>();
+        if (options.SchemaFile != null && options.SchemaFile.Exists)
+        {
+            var schema = ConfigSchema.LoadFromJson(options.SchemaFile.FullName);
+            var validator = new SchemaValidator();
+            schemaViolations.AddRange(validator.Validate(target.Values, schema));
+        }
 
-        return options.FailOnDiff && result.HasDifferences ? 1 : options.FailOnChanges && (result.CountOf(DiffKind.Added) > 0 || result.CountOf(DiffKind.Removed) > 0 || result.CountOf(DiffKind.Changed) > 0) ? 2 : 0;
+        WriteResult(result, schemaViolations, detector, options);
+
+        return ShouldFail(result, schemaViolations, options.FailOn) ? 1 : 0;
+    }
+
+    private static bool ShouldFail(DiffResult result, List<SchemaViolation> schemaViolations, FailOn failOn)
+    {
+        if (failOn == FailOn.None) return false;
+
+        if (failOn == FailOn.Any)
+        {
+            return result.HasDifferences || schemaViolations.Count > 0;
+        }
+
+        if (failOn == FailOn.Missing)
+        {
+            return result.CountOf(DiffKind.Removed) > 0 || schemaViolations.Any(v => v.IsMissing);
+        }
+
+        if (failOn == FailOn.SchemaViolation)
+        {
+            return schemaViolations.Count > 0;
+        }
+
+        return false;
     }
 
     private static int RunDirectoryDiff(DirectoryInfo? dir, string[]? envs, OutputOptions options)
@@ -245,22 +294,31 @@ rootCommand.AddOption(pathOption);
         var baselineEnv = environments[0];
         var baseline = ToFlatConfig(LoadEnvironmentConfig(dir, baselineEnv));
 
-        var anyDifferences = false;
-        var anyChanges = false;
+        var anyFail = false;
         foreach (var env in environments.Skip(1))
         {
             var target = ToFlatConfig(LoadEnvironmentConfig(dir, env));
             var result = differ.Diff(baseline, target, options.IgnorePatterns, baselineEnv, env, differOptions);
 
-            WriteResult(result, detector, options);
-            anyDifferences |= result.HasDifferences;
-            anyChanges |= result.CountOf(DiffKind.Added) > 0 || result.CountOf(DiffKind.Removed) > 0 || result.CountOf(DiffKind.Changed) > 0;
+            var schemaViolations = new List<SchemaViolation>();
+            if (options.SchemaFile != null && options.SchemaFile.Exists)
+            {
+                var schema = ConfigSchema.LoadFromJson(options.SchemaFile.FullName);
+                var validator = new SchemaValidator();
+                schemaViolations.AddRange(validator.Validate(target.Values, schema));
+            }
+
+            WriteResult(result, schemaViolations, detector, options);
+            if (ShouldFail(result, schemaViolations, options.FailOn))
+            {
+                anyFail = true;
+            }
         }
 
-        return options.FailOnDiff && anyDifferences ? 1 : options.FailOnChanges && anyChanges ? 2 : 0;
+        return anyFail ? 1 : 0;
     }
 
-    private static void WriteResult(DiffResult result, SensitiveKeyDetector detector, OutputOptions options)
+    private static void WriteResult(DiffResult result, List<SchemaViolation> schemaViolations, SensitiveKeyDetector detector, OutputOptions options)
     {
         var writer = DiffReportWriterFactory.Create(options.Format, detector, options.ShowSecrets, options.MaskSensitive);
 
@@ -294,6 +352,16 @@ rootCommand.AddOption(pathOption);
         }
         else
             writer.WriteConsole(result, options.NoColor);
+
+        if (schemaViolations.Count > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine("SCHEMA VIOLATIONS:");
+            foreach (var v in schemaViolations)
+            {
+                Console.WriteLine($"- {v.Key}: {v.Message}");
+            }
+        }
     }
 
     /// <summary>
