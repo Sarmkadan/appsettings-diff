@@ -8,72 +8,73 @@ namespace AppsettingsDiff;
 /// </summary>
 public static class MergeResultJsonExtensions
 {
-	private static readonly JsonSerializerOptions _options = new(JsonSerializerDefaults.Web)
-	{
-		PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-	};
+    private static readonly JsonSerializerOptions _options = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        MaxDepth = 128
+    };
 
-	/// <summary>
-	/// Serializes the <see cref="MergeResult"/> instance to a JSON string.
-	/// </summary>
-	/// <param name="value">The <see cref="MergeResult"/> to serialize.</param>
-	/// <param name="indented">If <c>true</c>, the output JSON will be formatted with indentation.</param>
-	/// <returns>A JSON representation of the <paramref name="value"/>.</returns>
-	/// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/></exception>
-	public static string ToJson(this MergeResult value, bool indented = false)
-	{
-		ArgumentNullException.ThrowIfNull(value);
-		return JsonSerializer.Serialize(value, indented ? new JsonSerializerOptions(_options) { WriteIndented = true } : _options);
-	}
+    /// <summary>
+    /// Serializes the <see cref="MergeResult"/> instance to a JSON string.
+    /// </summary>
+    /// <param name="value">The <see cref="MergeResult"/> to serialize.</param>
+    /// <param name="indented">If <c>true</c>, the output JSON will be formatted with indentation.</param>
+    /// <returns>A JSON representation of the <paramref name="value"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/></exception>
+    public static string ToJson(this MergeResult value, bool indented = false)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        return JsonSerializer.Serialize(value, indented ? new JsonSerializerOptions(_options) { WriteIndented = true } : _options);
+    }
 
-	/// <summary>
-	/// Deserializes a JSON string into a <see cref="MergeResult"/> instance.
-	/// </summary>
-	/// <param name="json">The JSON string representing a <see cref="MergeResult"/>.</param>
-	/// <returns>The deserialized <see cref="MergeResult"/>, or <c>null</c> if the JSON document is the literal <c>null</c>.</returns>
-	/// <exception cref="ArgumentNullException"><paramref name="json"/> is <see langword="null"/></exception>
-	/// <exception cref="JsonException">The JSON is invalid or cannot be deserialized into a <see cref="MergeResult"/></exception>
-	public static MergeResult? FromJson(string json)
-	{
-		ArgumentNullException.ThrowIfNull(json);
+    /// <summary>
+    /// Deserializes a JSON string into a <see cref="MergeResult"/> instance.
+    /// </summary>
+    /// <param name="json">The JSON string representing a <see cref="MergeResult"/>.</param>
+    /// <returns>The deserialized <see cref="MergeResult"/>, or <c>null</c> if the JSON document is the literal <c>null</c>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="json"/> is <see langword="null"/></exception>
+    /// <exception cref="JsonException">The JSON is invalid or cannot be deserialized into a <see cref="MergeResult"/></exception>
+    public static MergeResult? FromJson(string json)
+    {
+        ArgumentNullException.ThrowIfNull(json);
 
-		if (string.IsNullOrWhiteSpace(json))
-		{
-			return null;
-		}
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
 
-		return JsonSerializer.Deserialize<MergeResult>(json, _options);
-	}
+        return JsonSerializer.Deserialize<MergeResult>(json, _options);
+    }
 
-	/// <summary>
-	/// Attempts to deserialize a JSON string into a <see cref="MergeResult"/> instance.
-	/// </summary>
-	/// <param name="json">The JSON string representing a <see cref="MergeResult"/>.</param>
-	/// <param name="value">
-	/// When this method returns, contains the deserialized <see cref="MergeResult"/> if the operation succeeded;
-	/// otherwise, <c>null</c>.
-	/// </param>
-	/// <returns><c>true</c> if deserialization succeeded; otherwise, <c>false</c>.</returns>
-	/// <exception cref="ArgumentNullException"><paramref name="json"/> is <see langword="null"/></exception>
-	public static bool TryFromJson(string json, out MergeResult? value)
-	{
-		value = null;
+    /// <summary>
+    /// Attempts to deserialize a JSON string into a <see cref="MergeResult"/> instance.
+    /// </summary>
+    /// <param name="json">The JSON string representing a <see cref="MergeResult"/>.</param>
+    /// <param name="value">
+    /// When this method returns, contains the deserialized <see cref="MergeResult"/> if the operation succeeded;
+    /// otherwise, <c>null</c>.
+    /// </param>
+    /// <returns><c>true</c> if deserialization succeeded; otherwise, <c>false</c>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="json"/> is <see langword="null"/></exception>
+    public static bool TryFromJson(string json, out MergeResult? value)
+    {
+        value = null;
 
-		ArgumentNullException.ThrowIfNull(json);
+        ArgumentNullException.ThrowIfNull(json);
 
-		if (string.IsNullOrWhiteSpace(json))
-		{
-			return false;
-		}
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return false;
+        }
 
-		try
-		{
-			value = FromJson(json);
-			return true;
-		}
-		catch (JsonException)
-		{
-			return false;
-		}
-	}
+        try
+        {
+            value = FromJson(json);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
 }

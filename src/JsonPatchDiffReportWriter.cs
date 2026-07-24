@@ -14,6 +14,12 @@ namespace AppsettingsDiff;
 /// </summary>
 public sealed class JsonPatchDiffReportWriter : DiffReportWriterBase
 {
+    private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        MaxDepth = 128
+    };
+
     /// <summary>
     /// Initializes a new instance of the <see cref="JsonPatchDiffReportWriter"/> class.
     /// </summary>
@@ -77,6 +83,11 @@ public sealed class JsonPatchDiffReportWriter : DiffReportWriterBase
         foreach (var entry in result.Entries)
         {
             var path = JsonPatchOperation.FromConfigKey(entry.Key);
+            if (!IsValidPath(path))
+            {
+                throw new ArgumentException("Invalid path", nameof(entry.Key));
+            }
+
             var value = Policy.Redact(
                 entry.Kind == DiffKind.Removed ? entry.OldValue : entry.NewValue,
                 entry.IsSensitive);
@@ -105,7 +116,7 @@ public sealed class JsonPatchDiffReportWriter : DiffReportWriterBase
             // Flush the underlying buffer periodically so memory use for very large diffs
             // stays bounded instead of growing with the full patch size before a single
             // flush at the very end.
-            if (++entriesSinceFlush >= FlushEveryEntries)
+            if (++entriesSinceFlush >= 512)
             {
                 jsonWriter.Flush();
                 entriesSinceFlush = 0;
@@ -115,9 +126,9 @@ public sealed class JsonPatchDiffReportWriter : DiffReportWriterBase
         jsonWriter.WriteEndArray();
     }
 
-    /// <summary>
-    /// Number of entries written between periodic <see cref="Utf8JsonWriter.Flush"/> calls
-    /// while streaming a large diff result.
-    /// </summary>
-    private const int FlushEveryEntries = 512;
+    private static bool IsValidPath(string path)
+    {
+        // Simple validation for now, can be improved based on specific requirements
+        return !string.IsNullOrWhiteSpace(path) && path.StartsWith("/");
+    }
 }
