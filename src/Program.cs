@@ -228,8 +228,8 @@ public static class Program
         }
 
         var differ = new ConfigDiffer(detector);
-        var differOptions = new ConfigDifferOptions { MaxDepth = options.MaxDepth, PathPrefix = options.PathPrefix };
-        var result = differ.Diff(baseline, target, options.IgnorePatterns, baseFile.FullName, targetFile.FullName, differOptions);
+        var differOptions = new ConfigDiffOptions { MaxDepth = options.MaxDepth, PathPrefix = options.PathPrefix, IgnorePaths = options.IgnorePatterns, CaseSensitiveKeys = false, UnorderedArrays = false };
+        var result = differ.Diff(baseline, target, null, baseFile.FullName, targetFile.FullName, differOptions);
 
         var schemaViolations = new List<SchemaViolation>();
         if (options.SchemaFile != null && options.SchemaFile.Exists)
@@ -289,7 +289,7 @@ public static class Program
         }
 
         var differ = new ConfigDiffer(detector);
-        var differOptions = new ConfigDifferOptions { MaxDepth = options.MaxDepth, PathPrefix = options.PathPrefix };
+        var differOptions = new ConfigDiffOptions { MaxDepth = options.MaxDepth, PathPrefix = options.PathPrefix, IgnorePaths = options.IgnorePatterns, CaseSensitiveKeys = false, UnorderedArrays = false };
 
         var baselineEnv = environments[0];
         var baseline = ToFlatConfig(LoadEnvironmentConfig(dir, baselineEnv));
