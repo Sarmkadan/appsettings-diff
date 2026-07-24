@@ -44,7 +44,31 @@ public abstract class DiffReportWriterBase : IDiffReportWriter
     public string ToJson(DiffResult result) => ToJson(result, indented: true);
 
     /// <inheritdoc />
-    public abstract string ToJson(DiffResult result, bool indented);
+    public virtual string ToJson(DiffResult result, bool indented)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        using var stringWriter = new StringWriter();
+        WriteJson(result, stringWriter, indented);
+        return stringWriter.ToString();
+    }
+
+    /// <inheritdoc />
+    public void WriteJson(DiffResult result, TextWriter writer) => WriteJson(result, writer, indented: true);
+
+    /// <summary>
+    /// Streams the diff result as JSON, indented or compact, directly to the supplied writer via a
+    /// <see cref="System.Text.Json.Utf8JsonWriter"/>, avoiding the intermediate anonymous-type object
+    /// graph the reflection-based serializer would otherwise require.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="result"/> or <paramref name="writer"/> is <see langword="null"/>.</exception>
+    public virtual void WriteJson(DiffResult result, TextWriter writer, bool indented)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(writer);
+
+        DiffEntryJsonWriter.WriteFullResultTo(writer, result, indented, Redact);
+    }
 
     /// <inheritdoc />
     public abstract void WriteMarkdown(DiffResult result, TextWriter writer);
@@ -53,5 +77,15 @@ public abstract class DiffReportWriterBase : IDiffReportWriter
     public abstract void WriteHtml(DiffResult result, TextWriter writer);
 
     /// <inheritdoc />
-    public abstract string ToJsonPatch(DiffResult result);
+    public string ToJsonPatch(DiffResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        using var stringWriter = new StringWriter();
+        WriteJsonPatch(result, stringWriter);
+        return stringWriter.ToString();
+    }
+
+    /// <inheritdoc />
+    public abstract void WriteJsonPatch(DiffResult result, TextWriter writer);
 }

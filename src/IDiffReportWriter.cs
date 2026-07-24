@@ -24,6 +24,18 @@ public interface IDiffReportWriter
     string ToJson(DiffResult result, bool indented);
 
     /// <summary>
+    /// Streams the diff result as indented JSON directly to the supplied writer, avoiding the
+    /// intermediate full-string allocation that <see cref="ToJson(DiffResult)"/> requires.
+    /// </summary>
+    void WriteJson(DiffResult result, TextWriter writer);
+
+    /// <summary>
+    /// Streams the diff result as JSON, indented or compact, directly to the supplied writer,
+    /// avoiding the intermediate full-string allocation that <see cref="ToJson(DiffResult, bool)"/> requires.
+    /// </summary>
+    void WriteJson(DiffResult result, TextWriter writer, bool indented);
+
+    /// <summary>
     /// Writes a GitHub-flavored markdown report to the supplied writer.
     /// </summary>
     void WriteMarkdown(DiffResult result, TextWriter writer);
@@ -37,4 +49,10 @@ public interface IDiffReportWriter
     /// Generates a JSON Patch (RFC 6902) representation of the diff.
     /// </summary>
     string ToJsonPatch(DiffResult result);
+
+    /// <summary>
+    /// Streams a JSON Patch (RFC 6902) representation of the diff directly to the supplied writer,
+    /// avoiding the intermediate full-string allocation that <see cref="ToJsonPatch(DiffResult)"/> requires.
+    /// </summary>
+    void WriteJsonPatch(DiffResult result, TextWriter writer);
 }

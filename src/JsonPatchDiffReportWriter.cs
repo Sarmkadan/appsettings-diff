@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Text.Json;
 
 namespace AppsettingsDiff;
@@ -36,38 +35,6 @@ public sealed class JsonPatchDiffReportWriter : DiffReportWriterBase
     }
 
     /// <summary>
-    /// Serialises the diff result to JSON, indented or compact.
-    /// </summary>
-    public override string ToJson(DiffResult result, bool indented)
-    {
-        ArgumentNullException.ThrowIfNull(result);
-
-        var serialisable = new
-        {
-            result.BasePath,
-            result.TargetPath,
-            Entries = result.Entries.Select(e => new
-            {
-                Kind = e.Kind.ToString(),
-                e.Key,
-                OldValue = Redact(e.OldValue, e.IsSensitive),
-                NewValue = Redact(e.NewValue, e.IsSensitive),
-                e.Path,
-                e.IsSensitive,
-                OldType = e.Kind == DiffKind.TypeChanged ? e.OldType : null,
-                NewType = e.Kind == DiffKind.TypeChanged ? e.NewType : null
-            })
-        };
-
-        var options = new JsonSerializerOptions
-        {
-            WriteIndented = indented
-        };
-
-        return JsonSerializer.Serialize(serialisable, options);
-    }
-
-    /// <summary>
     /// Writes a GitHub‑flavored markdown report to the supplied writer.
     /// </summary>
     public override void WriteMarkdown(DiffResult result, System.IO.TextWriter writer)
@@ -93,13 +60,20 @@ public sealed class JsonPatchDiffReportWriter : DiffReportWriterBase
     /// Sensitive values are redacted unless <c>showSecrets</c> is true.
     /// </summary>
     /// <param name="result">The diff result to convert.</param>
-    /// <returns>JSON Patch array as a string.</returns>
-    public override string ToJsonPatch(DiffResult result)
+    /// <param name="writer">The destination writer.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="result"/> or <paramref name="writer"/> is <see langword="null"/>.</exception>
+    public override void WriteJsonPatch(DiffResult result, System.IO.TextWriter writer)
     {
-        if (result == null) throw new ArgumentNullException(nameof(result));
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(writer);
 
-        var operations = new List<JsonPatchOperation>();
+        using var stream = new Utf8TextWriterStream(writer);
+        var jsonOptions = new JsonWriterOptions { Indented = true };
+        using var jsonWriter = new Utf8JsonWriter(stream, jsonOptions);
 
+        jsonWriter.WriteStartArray();
+
+        var entriesSinceFlush = 0;
         foreach (var entry in result.Entries)
         {
             var path = JsonPatchOperation.FromConfigKey(entry.Key);
@@ -107,49 +81,43 @@ public sealed class JsonPatchDiffReportWriter : DiffReportWriterBase
                 entry.Kind == DiffKind.Removed ? entry.OldValue : entry.NewValue,
                 entry.IsSensitive);
 
-            string op;
-            switch (entry.Kind)
+            var op = entry.Kind switch
             {
-                case DiffKind.Added:
-                    op = "add";
-                    break;
-
-                case DiffKind.Removed:
-                    op = "remove";
-                    break;
-
-                case DiffKind.Changed:
-                case DiffKind.TypeChanged:
-                    op = "replace";
-                    break;
-
-                default:
-                    op = "replace";
-                    break;
-            }
-
-            var operation = new JsonPatchOperation
-            {
-                Op = op,
-                Path = path,
-                Value = value
+                DiffKind.Added => "add",
+                DiffKind.Removed => "remove",
+                DiffKind.Changed => "replace",
+                DiffKind.TypeChanged => "replace",
+                _ => "replace"
             };
 
             // Add type information for TypeChanged entries
             if (entry.Kind == DiffKind.TypeChanged && entry.OldType != null && entry.NewType != null)
             {
-                operation.Value = $"[TYPE_CHANGED: {entry.OldType}→{entry.NewType}] {value}";
+                value = $"[TYPE_CHANGED: {entry.OldType}→{entry.NewType}] {value}";
             }
 
-            operations.Add(operation);
+            jsonWriter.WriteStartObject();
+            jsonWriter.WriteString("op", op);
+            jsonWriter.WriteString("path", path);
+            jsonWriter.WriteString("value", value);
+            jsonWriter.WriteEndObject();
+
+            // Flush the underlying buffer periodically so memory use for very large diffs
+            // stays bounded instead of growing with the full patch size before a single
+            // flush at the very end.
+            if (++entriesSinceFlush >= FlushEveryEntries)
+            {
+                jsonWriter.Flush();
+                entriesSinceFlush = 0;
+            }
         }
 
-        var options = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
-
-        return JsonSerializer.Serialize(operations, options);
+        jsonWriter.WriteEndArray();
     }
+
+    /// <summary>
+    /// Number of entries written between periodic <see cref="Utf8JsonWriter.Flush"/> calls
+    /// while streaming a large diff result.
+    /// </summary>
+    private const int FlushEveryEntries = 512;
 }

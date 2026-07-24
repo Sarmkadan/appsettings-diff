@@ -30,90 +30,70 @@ public sealed class ConsoleDiffReportWriter : DiffReportWriterBase
     /// </summary>
     public override void WriteConsole(DiffResult result, bool noColor = false)
     {
-        if (result == null) throw new ArgumentNullException(nameof(result));
+        ArgumentNullException.ThrowIfNull(result);
 
-        // Header
-        Console.WriteLine($"Diff between \"{result.BasePath}\" and \"{result.TargetPath}\"");
-        Console.WriteLine(new string('-', 80));
-        Console.WriteLine("{0,-15} {1,-40} {2,-15} {3}", "Kind", "Key", "Old Value", "New Value");
-        Console.WriteLine(new string('-', 80));
+        var separator = new string('-', 80);
+        var disableColour = noColor || Console.IsOutputRedirected;
+        var originalColour = Console.ForegroundColor;
+        var currentColour = originalColour;
+
+        // Header rows are batched into a single StringBuilder/Write instead of four separate
+        // Console.WriteLine calls, each of which is its own console round-trip.
+        var header = new System.Text.StringBuilder(256)
+            .Append("Diff between \"").Append(result.BasePath).Append("\" and \"").Append(result.TargetPath).Append('"').Append('\n')
+            .Append(separator).Append('\n')
+            .AppendFormat("{0,-15} {1,-40} {2,-15} {3}", "Kind", "Key", "Old Value", "New Value").Append('\n')
+            .Append(separator);
+        Console.Out.WriteLine(header.ToString());
+
+        var line = new System.Text.StringBuilder(128);
 
         foreach (var entry in result.Entries)
         {
-            var colour = entry.Kind switch
-            {
-                DiffKind.Added => ConsoleColor.Green,
-                DiffKind.Removed => ConsoleColor.Red,
-                DiffKind.Changed => ConsoleColor.Yellow,
-                DiffKind.TypeChanged => ConsoleColor.Magenta,
-                _ => ConsoleColor.Gray
-            };
+            var colour = disableColour
+                ? ConsoleColor.Gray
+                : entry.Kind switch
+                {
+                    DiffKind.Added => ConsoleColor.Green,
+                    DiffKind.Removed => ConsoleColor.Red,
+                    DiffKind.Changed => ConsoleColor.Yellow,
+                    DiffKind.TypeChanged => ConsoleColor.Magenta,
+                    _ => ConsoleColor.Gray
+                };
 
             var oldVal = Redact(entry.OldValue, entry.IsSensitive);
             var newVal = Redact(entry.NewValue, entry.IsSensitive);
 
-            // Auto-disable colors when output is redirected or --no-color flag is set
-            if (noColor || Console.IsOutputRedirected)
-            {
-                colour = ConsoleColor.Gray;
-            }
-
-            var originalColour = Console.ForegroundColor;
-            Console.ForegroundColor = colour;
-
             // For TypeChanged entries, show type information
-            string displayText;
-            if (entry.Kind == DiffKind.TypeChanged && entry.OldType != null && entry.NewType != null)
-            {
-                displayText = $"{entry.Kind} ({entry.OldType}→{entry.NewType}) ";
-            }
-            else
-            {
-                displayText = entry.Kind.ToString();
-            }
+            var displayText = entry.Kind == DiffKind.TypeChanged && entry.OldType != null && entry.NewType != null
+                ? $"{entry.Kind} ({entry.OldType}→{entry.NewType}) "
+                : entry.Kind.ToString();
 
-            Console.WriteLine("{0,-15} {1,-40} {2,-15} {3}",
+            line.Clear();
+            line.AppendFormat("{0,-15} {1,-40} {2,-15} {3}",
                 displayText,
                 Truncate(entry.Key, 40),
                 Truncate(oldVal, 15),
                 Truncate(newVal, 30));
+
+            // Only touch the console color API when the color actually changes from the
+            // previous row - for large diffs most consecutive rows share a kind, so this
+            // avoids a redundant syscall-backed color switch per row.
+            if (colour != currentColour)
+            {
+                Console.ForegroundColor = colour;
+                currentColour = colour;
+            }
+
+            Console.Out.WriteLine(line.ToString());
+        }
+
+        if (currentColour != originalColour)
+        {
             Console.ForegroundColor = originalColour;
         }
 
-        Console.WriteLine(new string('-', 80));
-    }
-
-    /// <summary>
-    /// Serialises the diff result to JSON, indented or compact.
-    /// Sensitive values are redacted unless <c>showSecrets</c> is true.
-    /// </summary>
-    public override string ToJson(DiffResult result, bool indented)
-    {
-        ArgumentNullException.ThrowIfNull(result);
-
-        var serialisable = new
-        {
-            result.BasePath,
-            result.TargetPath,
-            Entries = result.Entries.Select(e => new
-            {
-                Kind = e.Kind.ToString(),
-                e.Key,
-                OldValue = Redact(e.OldValue, e.IsSensitive),
-                NewValue = Redact(e.NewValue, e.IsSensitive),
-                e.Path,
-                e.IsSensitive,
-                OldType = e.Kind == DiffKind.TypeChanged ? e.OldType : null,
-                NewType = e.Kind == DiffKind.TypeChanged ? e.NewType : null
-            })
-        };
-
-        var options = new System.Text.Json.JsonSerializerOptions
-        {
-            WriteIndented = indented
-        };
-
-        return System.Text.Json.JsonSerializer.Serialize(serialisable, options);
+        Console.Out.WriteLine(separator);
     }
 
     /// <summary>
@@ -133,9 +113,10 @@ public sealed class ConsoleDiffReportWriter : DiffReportWriterBase
     }
 
     /// <summary>
-    /// Generates a JSON Patch (RFC 6902) representation of the diff.
+    /// Streams a JSON Patch (RFC 6902) representation of the diff directly to the supplied writer.
     /// </summary>
-    public override string ToJsonPatch(DiffResult result)
+    /// <exception cref="NotSupportedException">Always thrown; use <see cref="JsonPatchDiffReportWriter"/> instead.</exception>
+    public override void WriteJsonPatch(DiffResult result, TextWriter writer)
     {
         throw new NotSupportedException("ConsoleDiffReportWriter does not support JSON Patch output. Use JsonPatchDiffReportWriter for JSON Patch output.");
     }

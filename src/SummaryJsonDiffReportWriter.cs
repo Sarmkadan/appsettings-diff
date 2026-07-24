@@ -30,38 +30,6 @@ public sealed class SummaryJsonDiffReportWriter : DiffReportWriterBase
     }
 
     /// <summary>
-    /// Serialises the diff result to JSON, indented or compact.
-    /// </summary>
-    public override string ToJson(DiffResult result, bool indented)
-    {
-        ArgumentNullException.ThrowIfNull(result);
-
-        var serialisable = new
-        {
-            result.BasePath,
-            result.TargetPath,
-            Entries = result.Entries.Select(e => new
-            {
-                Kind = e.Kind.ToString(),
-                e.Key,
-                OldValue = Redact(e.OldValue, e.IsSensitive),
-                NewValue = Redact(e.NewValue, e.IsSensitive),
-                e.Path,
-                e.IsSensitive,
-                OldType = e.Kind == DiffKind.TypeChanged ? e.OldType : null,
-                NewType = e.Kind == DiffKind.TypeChanged ? e.NewType : null
-            })
-        };
-
-        var options = new JsonSerializerOptions
-        {
-            WriteIndented = indented
-        };
-
-        return JsonSerializer.Serialize(serialisable, options);
-    }
-
-    /// <summary>
     /// Writes a GitHub‑flavored markdown report to the supplied writer.
     /// </summary>
     public override void WriteMarkdown(DiffResult result, System.IO.TextWriter writer)
@@ -78,9 +46,10 @@ public sealed class SummaryJsonDiffReportWriter : DiffReportWriterBase
     }
 
     /// <summary>
-    /// Generates a JSON Patch (RFC 6902) representation of the diff.
+    /// Streams a JSON Patch (RFC 6902) representation of the diff directly to the supplied writer.
     /// </summary>
-    public override string ToJsonPatch(DiffResult result)
+    /// <exception cref="NotSupportedException">Always thrown; use <see cref="JsonPatchDiffReportWriter"/> instead.</exception>
+    public override void WriteJsonPatch(DiffResult result, System.IO.TextWriter writer)
     {
         throw new NotSupportedException("SummaryJsonDiffReportWriter does not support JSON Patch output. Use JsonPatchDiffReportWriter for JSON Patch output.");
     }
