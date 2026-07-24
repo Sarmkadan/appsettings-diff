@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Linq;
 
 namespace AppsettingsDiff;
 
@@ -46,10 +45,11 @@ public sealed class HtmlDiffReportWriter : DiffReportWriterBase
     /// TypeChanged – purple background
     /// Sensitive values are redacted unless <c>showSecrets</c> is true.
     /// </summary>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="result"/> or <paramref name="writer"/> is <see langword="null"/>.</exception>
     public override void WriteHtml(DiffResult result, TextWriter writer)
     {
-        if (result == null) throw new ArgumentNullException(nameof(result));
-        if (writer == null) throw new ArgumentNullException(nameof(writer));
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(writer);
 
         writer.WriteLine("<!DOCTYPE html>");
         writer.WriteLine("<html lang=\"en\">");
@@ -154,6 +154,8 @@ public sealed class HtmlDiffReportWriter : DiffReportWriterBase
 
         writer.WriteLine("</body>");
         writer.WriteLine("</html>");
+
+        writer.Flush();
     }
 
     /// <summary>

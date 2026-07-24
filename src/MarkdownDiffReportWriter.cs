@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Linq;
 
 namespace AppsettingsDiff;
 
@@ -34,10 +33,11 @@ public sealed class MarkdownDiffReportWriter : DiffReportWriterBase
     /// Includes a summary line and a table with columns: Key | Change | Old | New.
     /// Sensitive values are redacted unless <c>showSecrets</c> is true.
     /// </summary>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="result"/> or <paramref name="writer"/> is <see langword="null"/>.</exception>
     public override void WriteMarkdown(DiffResult result, TextWriter writer)
     {
-        if (result == null) throw new ArgumentNullException(nameof(result));
-        if (writer == null) throw new ArgumentNullException(nameof(writer));
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(writer);
 
         // Summary line
         var added = result.CountOf(DiffKind.Added);
@@ -73,6 +73,8 @@ public sealed class MarkdownDiffReportWriter : DiffReportWriterBase
 
             writer.WriteLine($"| {key} | {change} | {oldVal} | {newVal} |");
         }
+
+        writer.Flush();
     }
 
     /// <summary>

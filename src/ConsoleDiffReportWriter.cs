@@ -46,7 +46,10 @@ public sealed class ConsoleDiffReportWriter : DiffReportWriterBase
             .Append(separator);
         Console.Out.WriteLine(header.ToString());
 
-        var line = new System.Text.StringBuilder(128);
+        // Buffer lines and write in batches to minimize console I/O
+        var lineBuffer = new System.Text.StringBuilder(1024);
+        var linesSinceFlush = 0;
+        const int FlushThreshold = 64;
 
         foreach (var entry in result.Entries)
         {
@@ -69,8 +72,8 @@ public sealed class ConsoleDiffReportWriter : DiffReportWriterBase
                 ? $"{entry.Kind} ({entry.OldType}→{entry.NewType}) "
                 : entry.Kind.ToString();
 
-            line.Clear();
-            line.AppendFormat("{0,-15} {1,-40} {2,-15} {3}",
+            lineBuffer.Clear();
+            lineBuffer.AppendFormat("{0,-15} {1,-40} {2,-15} {3}",
                 displayText,
                 Truncate(entry.Key, 40),
                 Truncate(oldVal, 15),
@@ -85,7 +88,15 @@ public sealed class ConsoleDiffReportWriter : DiffReportWriterBase
                 currentColour = colour;
             }
 
-            Console.Out.WriteLine(line.ToString());
+            Console.Out.WriteLine(lineBuffer.ToString());
+            linesSinceFlush++;
+
+            // Flush periodically to keep memory bounded for very large diffs
+            if (linesSinceFlush >= FlushThreshold)
+            {
+                Console.Out.Flush();
+                linesSinceFlush = 0;
+            }
         }
 
         if (currentColour != originalColour)
@@ -94,6 +105,7 @@ public sealed class ConsoleDiffReportWriter : DiffReportWriterBase
         }
 
         Console.Out.WriteLine(separator);
+        Console.Out.Flush();
     }
 
     /// <summary>

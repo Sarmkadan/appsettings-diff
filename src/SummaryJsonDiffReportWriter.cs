@@ -1,5 +1,5 @@
 using System;
-using System.Linq;
+using System.IO;
 using System.Text.Json;
 
 namespace AppsettingsDiff;
@@ -52,5 +52,73 @@ public sealed class SummaryJsonDiffReportWriter : DiffReportWriterBase
     public override void WriteJsonPatch(DiffResult result, System.IO.TextWriter writer)
     {
         throw new NotSupportedException("SummaryJsonDiffReportWriter does not support JSON Patch output. Use JsonPatchDiffReportWriter for JSON Patch output.");
+    }
+
+    /// <summary>
+    /// Streams a compact JSON summary directly to the supplied writer.
+    /// Outputs a summary object with counts and lists of changed keys.
+    /// </summary>
+    /// <param name="result">The diff result to serialize.</param>
+    /// <param name="writer">The destination writer.</param>
+    /// <param name="indented">Whether to format the JSON with indentation.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="result"/> or <paramref name="writer"/> is <see langword="null"/>.</exception>
+    public override void WriteJson(DiffResult result, TextWriter writer, bool indented = true)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(writer);
+
+        using var stream = new Utf8TextWriterStream(writer);
+        var jsonOptions = new JsonWriterOptions { Indented = indented };
+        using var jsonWriter = new Utf8JsonWriter(stream, jsonOptions);
+
+        jsonWriter.WriteStartObject();
+
+        jsonWriter.WriteNumber("added", result.CountOf(DiffKind.Added));
+        jsonWriter.WriteNumber("removed", result.CountOf(DiffKind.Removed));
+        jsonWriter.WriteNumber("changed", result.CountOf(DiffKind.Changed));
+        jsonWriter.WriteNumber("typeChanged", result.CountOf(DiffKind.TypeChanged));
+
+        jsonWriter.WriteStartArray("addedKeys");
+        foreach (var entry in result.Entries)
+        {
+            if (entry.Kind == DiffKind.Added)
+            {
+                jsonWriter.WriteStringValue(entry.Key);
+            }
+        }
+        jsonWriter.WriteEndArray();
+
+        jsonWriter.WriteStartArray("removedKeys");
+        foreach (var entry in result.Entries)
+        {
+            if (entry.Kind == DiffKind.Removed)
+            {
+                jsonWriter.WriteStringValue(entry.Key);
+            }
+        }
+        jsonWriter.WriteEndArray();
+
+        jsonWriter.WriteStartArray("changedKeys");
+        foreach (var entry in result.Entries)
+        {
+            if (entry.Kind == DiffKind.Changed)
+            {
+                jsonWriter.WriteStringValue(entry.Key);
+            }
+        }
+        jsonWriter.WriteEndArray();
+
+        jsonWriter.WriteStartArray("typeChangedKeys");
+        foreach (var entry in result.Entries)
+        {
+            if (entry.Kind == DiffKind.TypeChanged)
+            {
+                jsonWriter.WriteStringValue(entry.Key);
+            }
+        }
+        jsonWriter.WriteEndArray();
+
+        jsonWriter.WriteEndObject();
+        jsonWriter.Flush();
     }
 }
