@@ -173,25 +173,25 @@ public static class ThreeWayMerger
             // Determine the merge strategy based on the changes.
             // A null value means the key is absent on that side, so a null
             // winner keeps the key out of the merged dictionary (deletion).
-            if (baseValue == ourValue && ourValue == theirValue)
+            if (TimingSafeComparer.FixedTimeEquals(baseValue, ourValue) && TimingSafeComparer.FixedTimeEquals(ourValue, theirValue))
             {
                 // All three are the same - no change
                 if (ourValue is not null)
                     merged[key] = ourValue;
             }
-            else if (baseValue == ourValue)
+            else if (TimingSafeComparer.FixedTimeEquals(baseValue, ourValue))
             {
                 // Only theirs changed (modified, added or deleted) - take their side
                 if (theirValue is not null)
                     merged[key] = theirValue;
             }
-            else if (baseValue == theirValue)
+            else if (TimingSafeComparer.FixedTimeEquals(baseValue, theirValue))
             {
                 // Only ours changed (modified, added or deleted) - take our side
                 if (ourValue is not null)
                     merged[key] = ourValue;
             }
-            else if (ourValue == theirValue)
+            else if (TimingSafeComparer.FixedTimeEquals(ourValue, theirValue))
             {
                 // Both sides made the same change (including both deleting the key)
                 if (ourValue is not null)
@@ -389,7 +389,7 @@ public static class ThreeWayMerger
     /// <returns><see langword="true"/> if both slices have identical keys and values; otherwise <see langword="false"/>.</returns>
     private static bool SliceEquals(Dictionary<string, string> left, Dictionary<string, string> right) =>
         left.Count == right.Count &&
-        left.All(kv => right.TryGetValue(kv.Key, out var value) && value == kv.Value);
+        left.All(kv => right.TryGetValue(kv.Key, out var value) && TimingSafeComparer.FixedTimeEquals(kv.Value, value));
 
     /// <summary>
     /// Writes every entry of an array slice into the merged dictionary.

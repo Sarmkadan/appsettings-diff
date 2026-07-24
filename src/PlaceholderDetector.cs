@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace AppsettingsDiff;
 
 /// <summary>
@@ -117,8 +119,9 @@ public sealed class PlaceholderDetector
             return true;
         }
 
-        // Check for localhost in production-like contexts
-        return normalized.Equals("localhost", StringComparison.OrdinalIgnoreCase);
+        // Use timing-safe comparison for the final equality check to prevent
+        // timing attacks when comparing against sensitive placeholder values
+        return TimingSafeComparer.FixedTimeEquals(normalized, "localhost", StringComparison.OrdinalIgnoreCase);
     }
 
     private string DetermineReason(string value)
@@ -155,7 +158,7 @@ public sealed class PlaceholderDetector
             return "Uses angle bracket placeholder syntax";
         }
 
-        if (normalized.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+        if (TimingSafeComparer.FixedTimeEquals(normalized, "localhost", StringComparison.OrdinalIgnoreCase))
         {
             return "Contains localhost in production context";
         }

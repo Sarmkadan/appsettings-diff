@@ -475,13 +475,13 @@ public class ConfigDiffer
         if (value1 == null || value2 == null)
             return value1 == value2;
 
-        // If max depth is not set or we're within the limit, use standard comparison
+        // If max depth is not set or we're within the limit, use timing-safe comparison
         if (maxDepth == null || maxDepth <= 0)
-            return value1 == value2;
+            return TimingSafeComparer.FixedTimeEquals(value1, value2);
 
         // If we exceed max depth, compare as opaque blobs
         // Only report a difference if the entire subtree changed
-        return value1 == value2;
+        return TimingSafeComparer.FixedTimeEquals(value1, value2);
     }
 
     private static bool ShouldIgnore(string key, HashSet<string> ignoreSet)
@@ -508,9 +508,9 @@ public class ConfigDiffer
         if (value1 == null || value2 == null)
             return value1 == value2;
 
-        // If unordered array comparison is not enabled, use standard comparison
+        // If unordered array comparison is not enabled, use timing-safe comparison
         if (!options.UnorderedArrays)
-            return value1 == value2;
+            return TimingSafeComparer.FixedTimeEquals(value1, value2);
 
         // Check if both values represent arrays (contain array index notation like [0], [1], etc.)
         if (IsArrayValue(value1) && IsArrayValue(value2))
@@ -519,9 +519,9 @@ public class ConfigDiffer
             var arrayKey1 = ExtractArrayKey(value1);
             var arrayKey2 = ExtractArrayKey(value2);
 
-            // If they're not the same array, use standard comparison
+            // If they're not the same array, use timing-safe comparison
             if (!string.Equals(arrayKey1, arrayKey2, StringComparison.OrdinalIgnoreCase))
-                return value1 == value2;
+                return TimingSafeComparer.FixedTimeEquals(value1, value2);
 
             // Extract all values for each array
             var values1 = ExtractArrayValues(value1);
@@ -531,8 +531,8 @@ public class ConfigDiffer
             return values1.SetEquals(values2);
         }
 
-        // Standard string comparison for non-arrays or mixed types
-        return value1 == value2;
+        // Timing-safe comparison for non-arrays or mixed types
+        return TimingSafeComparer.FixedTimeEquals(value1, value2);
     }
 
     /// <summary>
