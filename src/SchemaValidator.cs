@@ -283,7 +283,7 @@ namespace AppsettingsDiff
                 {
                     violations.Add(new SchemaViolation
                     {
-                        Key = key,
+                        KeyPath = key,
                         Message = $"Required key '{key}' is missing",
                         IsMissing = true
                     });
@@ -353,7 +353,7 @@ namespace AppsettingsDiff
                     {
                         violations.Add(new SchemaViolation
                         {
-                            Key = key,
+                            KeyPath = key,
                             Message = errorMessage,
                             IsMissing = false
                         });
@@ -371,7 +371,7 @@ namespace AppsettingsDiff
                     {
                         violations.Add(new SchemaViolation
                         {
-                            Key = key,
+                            KeyPath = key,
                             Message = $"Configuration value contains a connection string with credentials (detected Password= or pwd= pattern)",
                             IsSensitive = true
                         });
@@ -388,7 +388,7 @@ namespace AppsettingsDiff
                 {
                     violations.Add(new SchemaViolation
                     {
-                        Key = key,
+                        KeyPath = key,
                         Message = $"Key '{key}' differs only by casing from another key in config. Keys are case-insensitive and should have unique casing.",
                         IsCasingConflict = true,
                         IsMissing = false,
@@ -413,7 +413,7 @@ namespace AppsettingsDiff
                     {
                         violations.Add(new SchemaViolation
                         {
-                            Key = key,
+                            KeyPath = key,
                             Message = $"Unknown key '{key}' is present in config but not defined in schema",
                             IsUnknown = true,
                             IsMissing = false
@@ -449,7 +449,16 @@ namespace AppsettingsDiff
         /// <summary>
         /// Gets the key that is in violation.
         /// </summary>
-        public string Key { get; set; } = string.Empty;
+        public ConfigPath KeyPath { get; set; }
+
+    /// <summary>
+    /// Gets the string representation of the key path.
+    /// </summary>
+    public string Key
+    {
+        get => KeyPath.Path;
+        set => KeyPath = new ConfigPath(value);
+    }
 
         /// <summary>
         /// Gets the message describing the violation.

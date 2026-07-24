@@ -73,7 +73,7 @@ namespace AppsettingsDiff
 				"datetime" => ValidateDateTimeType(key, value),
 				_ => new SchemaViolation
 				{
-					Key = key,
+					KeyPath = key,
 					Message = $"Unknown type hint '{typeHint}' for key '{key}'",
 					IsMissing = false
 				}
@@ -98,7 +98,7 @@ namespace AppsettingsDiff
 				? null
 				: new SchemaViolation
 				{
-					Key = key,
+					KeyPath = key,
 					Message = $"Value '{value}' is not a valid integer for key '{key}'",
 					IsMissing = false
 				};
@@ -108,7 +108,7 @@ namespace AppsettingsDiff
 				? null
 				: new SchemaViolation
 				{
-					Key = key,
+					KeyPath = key,
 					Message = $"Value '{value}' is not a valid boolean for key '{key}'",
 					IsMissing = false
 				};
@@ -123,7 +123,7 @@ namespace AppsettingsDiff
 
 			return new SchemaViolation
 			{
-				Key = key,
+				KeyPath = key,
 				Message = $"Value '{value}' is not a valid URL for key '{key}'",
 				IsMissing = false
 			};
@@ -134,7 +134,7 @@ namespace AppsettingsDiff
 				? null
 				: new SchemaViolation
 				{
-					Key = key,
+					KeyPath = key,
 					Message = $"Value '{value}' is not a valid GUID for key '{key}'",
 					IsMissing = false
 				};
@@ -144,7 +144,7 @@ namespace AppsettingsDiff
 				? null
 				: new SchemaViolation
 				{
-					Key = key,
+					KeyPath = key,
 					Message = $"Value '{value}' is not a valid double for key '{key}'",
 					IsMissing = false
 				};
@@ -154,7 +154,7 @@ namespace AppsettingsDiff
 				? null
 				: new SchemaViolation
 				{
-					Key = key,
+					KeyPath = key,
 					Message = $"Value '{value}' is not a valid DateTime for key '{key}'",
 					IsMissing = false
 				};
