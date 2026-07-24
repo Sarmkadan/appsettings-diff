@@ -8,26 +8,51 @@ namespace AppsettingsDiff;
 /// <summary>
 /// Options for configuring the diff operation
 /// </summary>
-public class ConfigDifferOptions
+public record ConfigDiffOptions
 {
     /// <summary>
     /// Gets or sets a value indicating whether to compare arrays by value-set (unordered) instead of by index.
     /// When true, arrays are compared as sets - order doesn't matter.
     /// </summary>
-    public bool UnorderedArrays { get; set; }
+    public bool UnorderedArrays { get; init; }
 
     /// <summary>
     /// Gets or sets the maximum depth to compare nested structures.
     /// When null or 0, no depth limit is applied.
     /// When greater than 0, subtrees deeper than this level are compared as opaque blobs.
     /// </summary>
-    public int? MaxDepth { get; set; }
+    public int? MaxDepth { get; init; }
 
     /// <summary>
     /// Gets or sets the path prefix to filter keys by.
     /// When set, only keys starting with this prefix will be compared.
     /// </summary>
-    public string? PathPrefix { get; set; }
+    public string? PathPrefix { get; init; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether key comparisons should be case-sensitive.
+    /// When true, keys are compared using case-sensitive comparison.
+    /// When false (default), keys are compared using case-insensitive comparison.
+    /// </summary>
+    public bool CaseSensitiveKeys { get; init; }
+
+    /// <summary>
+    /// Gets or sets additional key patterns to ignore during comparison.
+    /// These patterns are combined with any patterns passed to the Diff method.
+    /// </summary>
+    public IEnumerable<string>? IgnorePaths { get; init; }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ConfigDiffOptions"/> class with default values.
+    /// </summary>
+    public ConfigDiffOptions()
+    {
+        UnorderedArrays = false;
+        MaxDepth = null;
+        PathPrefix = null;
+        CaseSensitiveKeys = false;
+        IgnorePaths = null;
+    }
 }
 
 /// <summary>
@@ -36,11 +61,12 @@ public class ConfigDifferOptions
 public class SensitiveKeyDetector
 {
     private readonly string[] _sensitivePatterns;
+    private readonly bool _caseSensitive;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SensitiveKeyDetector"/> class with default patterns.
     /// </summary>
-    public SensitiveKeyDetector() : this(LoadDefaultPatterns())
+    public SensitiveKeyDetector() : this(LoadDefaultPatterns(), caseSensitive: false)
     {
     }
 
@@ -48,9 +74,19 @@ public class SensitiveKeyDetector
     /// Initializes a new instance of the <see cref="SensitiveKeyDetector"/> class with custom patterns.
     /// </summary>
     /// <param name="customPatterns">Custom sensitive patterns to use.</param>
-    public SensitiveKeyDetector(IEnumerable<string> customPatterns)
+    public SensitiveKeyDetector(IEnumerable<string> customPatterns) : this(customPatterns, caseSensitive: false)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SensitiveKeyDetector"/> class with custom patterns and case sensitivity.
+    /// </summary>
+    /// <param name="customPatterns">Custom sensitive patterns to use.</param>
+    /// <param name="caseSensitive">Whether pattern matching should be case-sensitive.</param>
+    public SensitiveKeyDetector(IEnumerable<string> customPatterns, bool caseSensitive)
     {
         _sensitivePatterns = customPatterns?.ToArray() ?? Array.Empty<string>();
+        _caseSensitive = caseSensitive;
     }
 
     /// <summary>
@@ -109,6 +145,15 @@ public class SensitiveKeyDetector
     }
 
     /// <summary>
+    /// Gets the loaded sensitive patterns.
+    /// </summary>
+    /// <returns>Array of sensitive patterns.</returns>
+    internal string[] GetPatterns()
+    {
+        return _sensitivePatterns;
+    }
+
+    /// <summary>
     /// Determines whether the given configuration key matches any of the known sensitive patterns.
     /// </summary>
     /// <param name="key">The configuration key to check.</param>
@@ -118,10 +163,14 @@ public class SensitiveKeyDetector
         if (string.IsNullOrWhiteSpace(key))
             return false;
 
+        var comparison = _caseSensitive
+            ? StringComparison.Ordinal
+            : StringComparison.OrdinalIgnoreCase;
+
         return _sensitivePatterns.Any(pattern =>
             pattern.Contains('*')
-                ? KeyPatternMatcher.IsMatch(key, pattern)
-                : key.Contains(pattern, StringComparison.OrdinalIgnoreCase));
+                ? KeyPatternMatcher.IsMatch(key, pattern, comparison)
+                : key.Contains(pattern, comparison));
     }
 }
 
@@ -131,10 +180,10 @@ public class SensitiveKeyDetector
 /// </summary>
 internal static class KeyPatternMatcher
 {
-    public static bool IsMatch(string text, string pattern)
+    public static bool IsMatch(string text, string pattern, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
     {
         if (!pattern.Contains('*'))
-            return text.Equals(pattern, StringComparison.OrdinalIgnoreCase);
+            return text.Equals(pattern, comparison);
 
         var segments = pattern.Split('*');
         bool anchoredStart = segments[0].Length > 0;
@@ -149,7 +198,7 @@ internal static class KeyPatternMatcher
 
             if (i == 0 && anchoredStart)
             {
-                if (!text.StartsWith(segment, StringComparison.OrdinalIgnoreCase))
+                if (!text.StartsWith(segment, comparison))
                     return false;
 
                 position = segment.Length;
@@ -158,14 +207,14 @@ internal static class KeyPatternMatcher
             {
                 // The final segment must sit flush against the end of the text.
                 int endIndex = text.Length - segment.Length;
-                if (endIndex < position || !text.EndsWith(segment, StringComparison.OrdinalIgnoreCase))
+                if (endIndex < position || !text.EndsWith(segment, comparison))
                     return false;
 
                 position = text.Length;
             }
             else
             {
-                int index = text.IndexOf(segment, position, StringComparison.OrdinalIgnoreCase);
+                int index = text.IndexOf(segment, position, comparison);
                 if (index < 0)
                     return false;
 
@@ -296,6 +345,18 @@ public class ConfigDiffer
     }
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="ConfigDiffer"/> class with case-sensitive key comparisons.
+    /// </summary>
+    /// <param name="detector">Detector used to flag sensitive keys in the produced entries.</param>
+    /// <param name="caseSensitiveKeys">Whether key comparisons should be case-sensitive.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="detector"/> is <see langword="null"/>.</exception>
+    public ConfigDiffer(SensitiveKeyDetector detector, bool caseSensitiveKeys)
+    {
+        ArgumentNullException.ThrowIfNull(detector);
+        _detector = new SensitiveKeyDetector(detector.GetPatterns(), caseSensitiveKeys);
+    }
+
+    /// <summary>
     /// Compares two flat configurations and reports added, removed and changed keys.
     /// </summary>
     /// <param name="baseline">The baseline configuration.</param>
@@ -312,12 +373,12 @@ public class ConfigDiffer
         IEnumerable<string>? ignoreKeys = null,
         string? basePath = null,
         string? targetPath = null,
-        ConfigDifferOptions? options = null)
+        ConfigDiffOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(baseline);
         ArgumentNullException.ThrowIfNull(target);
 
-        options ??= new ConfigDifferOptions();
+        options ??= new ConfigDiffOptions();
         int? maxDepth = options.MaxDepth;
         string? pathPrefix = options.PathPrefix;
 
@@ -336,20 +397,29 @@ public class ConfigDiffer
             }
         }
 
+        // Add ignore paths from options
+        if (options.IgnorePaths != null)
+        {
+            foreach (var pattern in options.IgnorePaths)
+            {
+                ignoreSet.Add(pattern);
+            }
+        }
+
         int ignoredCount = 0;
 
         // Check for removed keys (in baseline but not in target)
         foreach (var kvp in baseline.Values)
         {
             string key = kvp.Key;
-            if (ShouldIgnore(key, ignoreSet))
+            if (ShouldIgnore(key, ignoreSet, options))
             {
                 ignoredCount++;
                 continue;
             }
 
             // Skip keys that don't match the path prefix
-            if (!MatchesPathPrefix(key, pathPrefix))
+            if (!MatchesPathPrefix(key, pathPrefix, options.CaseSensitiveKeys))
             {
                 ignoredCount++;
                 continue;
@@ -413,14 +483,14 @@ public class ConfigDiffer
         foreach (var kvp in target.Values)
         {
             string key = kvp.Key;
-            if (ShouldIgnore(key, ignoreSet))
+            if (ShouldIgnore(key, ignoreSet, options))
             {
                 ignoredCount++;
                 continue;
             }
 
             // Skip keys that don't match the path prefix
-            if (!MatchesPathPrefix(key, pathPrefix))
+            if (!MatchesPathPrefix(key, pathPrefix, options.CaseSensitiveKeys))
             {
                 ignoredCount++;
                 continue;
@@ -484,15 +554,19 @@ public class ConfigDiffer
         return TimingSafeComparer.FixedTimeEquals(value1, value2);
     }
 
-    private static bool ShouldIgnore(string key, HashSet<string> ignoreSet)
+    private bool ShouldIgnore(string key, HashSet<string> ignoreSet, ConfigDiffOptions options)
     {
         if (ignoreSet.Count == 0)
             return false;
 
+        var comparison = options.CaseSensitiveKeys
+            ? StringComparison.Ordinal
+            : StringComparison.OrdinalIgnoreCase;
+
         return ignoreSet.Any(pattern =>
             pattern.Contains('*')
-                ? KeyPatternMatcher.IsMatch(key, pattern)
-                : key.Contains(pattern, StringComparison.OrdinalIgnoreCase));
+                ? KeyPatternMatcher.IsMatch(key, pattern, comparison)
+                : key.Contains(pattern, comparison));
     }
 
     /// <summary>
@@ -502,7 +576,7 @@ public class ConfigDiffer
     /// <param name="value2">The second value to compare.</param>
     /// <param name="options">The diff options that may enable unordered array comparison.</param>
     /// <returns>True if the values are equal; otherwise false.</returns>
-    private bool AreValuesEqual(string? value1, string? value2, ConfigDifferOptions options)
+    private bool AreValuesEqual(string? value1, string? value2, ConfigDiffOptions options)
     {
         // If either value is null, use standard comparison
         if (value1 == null || value2 == null)
@@ -602,13 +676,18 @@ public class ConfigDiffer
     /// </summary>
     /// <param name="key">The configuration key to check.</param>
     /// <param name="pathPrefix">The path prefix to filter by (null or empty means no filtering).</param>
+    /// <param name="caseSensitive">Whether the comparison should be case-sensitive.</param>
     /// <returns>True if the key matches the prefix filter; otherwise false.</returns>
-    private bool MatchesPathPrefix(string key, string? pathPrefix)
+    private bool MatchesPathPrefix(string key, string? pathPrefix, bool caseSensitive = false)
     {
         if (string.IsNullOrEmpty(pathPrefix))
             return true;
 
-        return key.StartsWith(pathPrefix, StringComparison.OrdinalIgnoreCase);
+        var comparison = caseSensitive
+            ? StringComparison.Ordinal
+            : StringComparison.OrdinalIgnoreCase;
+
+        return key.StartsWith(pathPrefix, comparison);
     }
 
     /// <summary>
