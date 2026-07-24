@@ -22,7 +22,7 @@ public static class PlaceholderDetectorJsonExtensions
 	/// <param name="value">The <see cref="PlaceholderDetector"/> instance to serialize.</param>
 	/// <param name="indented">Whether to format the JSON with indentation for readability.</param>
 	/// <returns>A JSON string representation of the <see cref="PlaceholderDetector"/>.</returns>
-	/// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
+	/// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/></exception>
 	public static string ToJson(this PlaceholderDetector value, bool indented = false)
 	{
 		ArgumentNullException.ThrowIfNull(value);
@@ -39,11 +39,16 @@ public static class PlaceholderDetectorJsonExtensions
 	/// </summary>
 	/// <param name="json">The JSON string to deserialize.</param>
 	/// <returns>A <see cref="PlaceholderDetector"/> instance populated from the JSON data.</returns>
-	/// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty.</exception>
+	/// <exception cref="ArgumentNullException"><paramref name="json"/> is <see langword="null"/></exception>
 	/// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
 	public static PlaceholderDetector? FromJson(string json)
 	{
-		ArgumentException.ThrowIfNullOrEmpty(json);
+		ArgumentNullException.ThrowIfNull(json);
+
+		if (string.IsNullOrWhiteSpace(json))
+		{
+			return null;
+		}
 
 		var state = JsonSerializer.Deserialize<PlaceholderDetectorState>(json, _jsonOptions);
 		return state?.Patterns is null ? null : new PlaceholderDetector(state.Patterns);
@@ -55,10 +60,17 @@ public static class PlaceholderDetectorJsonExtensions
 	/// <param name="json">The JSON string to deserialize.</param>
 	/// <param name="value">Receives the deserialized <see cref="PlaceholderDetector"/> instance if successful.</param>
 	/// <returns>True if deserialization succeeded; otherwise false.</returns>
-	/// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty.</exception>
+	/// <exception cref="ArgumentNullException"><paramref name="json"/> is <see langword="null"/></exception>
 	public static bool TryFromJson(string json, out PlaceholderDetector? value)
 	{
-		ArgumentException.ThrowIfNullOrEmpty(json);
+		value = null;
+
+		ArgumentNullException.ThrowIfNull(json);
+
+		if (string.IsNullOrWhiteSpace(json))
+		{
+			return false;
+		}
 
 		try
 		{
@@ -67,7 +79,6 @@ public static class PlaceholderDetectorJsonExtensions
 		}
 		catch (JsonException)
 		{
-			value = null;
 			return false;
 		}
 	}

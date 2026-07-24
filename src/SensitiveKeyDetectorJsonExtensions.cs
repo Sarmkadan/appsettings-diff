@@ -21,7 +21,7 @@ public static class SensitiveKeyDetectorJsonExtensions
 	/// <param name="value">The <see cref="SensitiveKeyDetector"/> instance to serialize.</param>
 	/// <param name="indented">Whether to format the JSON with indentation for readability.</param>
 	/// <returns>A JSON string representation of the <see cref="SensitiveKeyDetector"/>.</returns>
-	/// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
+	/// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/></exception>
 	public static string ToJson(this SensitiveKeyDetector value, bool indented = false)
 	{
 		ArgumentNullException.ThrowIfNull(value);
@@ -38,7 +38,7 @@ public static class SensitiveKeyDetectorJsonExtensions
 	/// </summary>
 	/// <param name="json">The JSON string to deserialize.</param>
 	/// <returns>A <see cref="SensitiveKeyDetector"/> instance populated from the JSON data, or null if the JSON is empty or whitespace.</returns>
-	/// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
+	/// <exception cref="ArgumentNullException"><paramref name="json"/> is <see langword="null"/></exception>
 	/// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
 	public static SensitiveKeyDetector? FromJson(string json)
 	{
@@ -58,7 +58,7 @@ public static class SensitiveKeyDetectorJsonExtensions
 	/// <param name="json">The JSON string to deserialize.</param>
 	/// <param name="value">Receives the deserialized <see cref="SensitiveKeyDetector"/> instance if successful; otherwise, null.</param>
 	/// <returns>True if deserialization succeeded; otherwise, false.</returns>
-	/// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
+	/// <exception cref="ArgumentNullException"><paramref name="json"/> is <see langword="null"/></exception>
 	public static bool TryFromJson(string json, out SensitiveKeyDetector? value)
 	{
 		value = null;
