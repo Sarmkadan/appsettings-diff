@@ -1,0 +1,2757 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>AppsettingsDiff</name>
+    </assembly>
+    <members>
+        <member name="T:AppsettingsDiff.ConfigDifferOptions">
+            <summary>
+            Options for configuring the diff operation
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.ConfigDifferOptions.UnorderedArrays">
+            <summary>
+            Gets or sets a value indicating whether to compare arrays by value-set (unordered) instead of by index.
+            When true, arrays are compared as sets - order doesn't matter.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.ConfigDifferOptions.MaxDepth">
+            <summary>
+            Gets or sets the maximum depth to compare nested structures.
+            When null or 0, no depth limit is applied.
+            When greater than 0, subtrees deeper than this level are compared as opaque blobs.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.ConfigDifferOptions.PathPrefix">
+            <summary>
+            Gets or sets the path prefix to filter keys by.
+            When set, only keys starting with this prefix will be compared.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.SensitiveKeyDetector">
+            <summary>
+            Detects sensitive keys in configuration
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.SensitiveKeyDetector.#ctor">
+            <summary>
+            Initializes a new instance of the <see cref="T:AppsettingsDiff.SensitiveKeyDetector"/> class with default patterns.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.SensitiveKeyDetector.#ctor(System.Collections.Generic.IEnumerable{System.String})">
+            <summary>
+            Initializes a new instance of the <see cref="T:AppsettingsDiff.SensitiveKeyDetector"/> class with custom patterns.
+            </summary>
+            <param name="customPatterns">Custom sensitive patterns to use.</param>
+        </member>
+        <member name="M:AppsettingsDiff.SensitiveKeyDetector.LoadDefaultPatterns">
+            <summary>
+            Loads default sensitive patterns.
+            </summary>
+            <returns>Array of default sensitive patterns.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.SensitiveKeyDetector.LoadWithCustomPatterns(System.String)">
+            <summary>
+            Loads sensitive patterns from a file (one wildcard pattern per line, # comments allowed).
+            </summary>
+            <param name="path">Path to the file containing custom patterns.</param>
+            <returns>Array of patterns loaded from file, combined with default patterns.</returns>
+            <exception cref="T:System.IO.FileNotFoundException">Thrown when the specified file does not exist.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.SensitiveKeyDetector.IsSensitive(System.String)">
+            <summary>
+            Determines whether the given configuration key matches any of the known sensitive patterns.
+            </summary>
+            <param name="key">The configuration key to check.</param>
+            <returns><see langword="true"/> if the key looks sensitive; otherwise <see langword="false"/>.</returns>
+        </member>
+        <member name="T:AppsettingsDiff.KeyPatternMatcher">
+            <summary>
+            Case-insensitive wildcard matching for configuration key patterns,
+            where <c>*</c> matches any (possibly empty) sequence of characters.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.FlatConfig">
+            <summary>
+            Represents a flat configuration with key-value pairs
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.FlatConfig.Values">
+            <summary>Gets the flattened key-value pairs of the configuration.</summary>
+        </member>
+        <member name="M:AppsettingsDiff.FlatConfig.GetValue(System.String)">
+            <summary>Gets the value for <paramref name="key"/>, or an empty string when the key is absent.</summary>
+            <param name="key">The configuration key to look up.</param>
+        </member>
+        <member name="M:AppsettingsDiff.FlatConfig.ContainsKey(System.String)">
+            <summary>Determines whether the configuration contains <paramref name="key"/>.</summary>
+            <param name="key">The configuration key to check.</param>
+        </member>
+        <member name="T:AppsettingsDiff.DiffKind">
+            <summary>
+            Represents the type of difference
+            </summary>
+        </member>
+        <member name="F:AppsettingsDiff.DiffKind.Added">
+            <summary>The key exists in the target but not in the baseline.</summary>
+        </member>
+        <member name="F:AppsettingsDiff.DiffKind.Removed">
+            <summary>The key exists in the baseline but not in the target.</summary>
+        </member>
+        <member name="F:AppsettingsDiff.DiffKind.Changed">
+            <summary>The key exists in both configurations with different values.</summary>
+        </member>
+        <member name="F:AppsettingsDiff.DiffKind.TypeChanged">
+            <summary>The key exists in both configurations but the value types differ.</summary>
+        </member>
+        <member name="T:AppsettingsDiff.DiffEntry">
+            <summary>
+            Represents a single difference entry
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.DiffEntry.Kind">
+            <summary>Gets the type of the difference.</summary>
+        </member>
+        <member name="P:AppsettingsDiff.DiffEntry.Key">
+            <summary>Gets the configuration key the difference applies to.</summary>
+        </member>
+        <member name="P:AppsettingsDiff.DiffEntry.OldValue">
+            <summary>Gets the baseline value, or <see langword="null"/> for added keys.</summary>
+        </member>
+        <member name="P:AppsettingsDiff.DiffEntry.NewValue">
+            <summary>Gets the target value, or <see langword="null"/> for removed keys.</summary>
+        </member>
+        <member name="P:AppsettingsDiff.DiffEntry.IsSensitive">
+            <summary>Gets a value indicating whether the key is considered sensitive.</summary>
+        </member>
+        <member name="P:AppsettingsDiff.DiffEntry.Path">
+            <summary>Gets the optional source path associated with the entry.</summary>
+        </member>
+        <member name="P:AppsettingsDiff.DiffEntry.OldType">
+            <summary>
+            Gets the type of the baseline value (e.g., "string", "number", "boolean", "object", "null").
+            Only relevant for TypeChanged differences.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.DiffEntry.NewType">
+            <summary>
+            Gets the type of the target value (e.g., "string", "number", "boolean", "object", "null").
+            Only relevant for TypeChanged differences.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.DiffResult">
+            <summary>
+            Result of a diff operation
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.DiffResult.Entries">
+            <summary>Gets the individual difference entries.</summary>
+        </member>
+        <member name="P:AppsettingsDiff.DiffResult.BasePath">
+            <summary>Gets the identifier of the baseline configuration.</summary>
+        </member>
+        <member name="P:AppsettingsDiff.DiffResult.TargetPath">
+            <summary>Gets the identifier of the target configuration.</summary>
+        </member>
+        <member name="P:AppsettingsDiff.DiffResult.HasDifferences">
+            <summary>Gets a value indicating whether any differences were found.</summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffResult.CountOf(AppsettingsDiff.DiffKind)">
+            <summary>
+            Counts the entries of the specified <paramref name="kind"/>.
+            </summary>
+            <param name="kind">The kind of difference to count.</param>
+        </member>
+        <member name="P:AppsettingsDiff.DiffResult.IgnoredCount">
+            <summary>
+            Gets the number of keys that were ignored due to the ignore patterns.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.ConfigDiffer">
+            <summary>
+            Main diffing class that compares two configurations
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigDiffer.#ctor(AppsettingsDiff.SensitiveKeyDetector)">
+            <summary>
+            Initializes a new instance of the <see cref="T:AppsettingsDiff.ConfigDiffer"/> class.
+            </summary>
+            <param name="detector">Detector used to flag sensitive keys in the produced entries.</param>
+            <exception cref="T:System.ArgumentNullException">Thrown when <paramref name="detector"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigDiffer.Diff(AppsettingsDiff.FlatConfig,AppsettingsDiff.FlatConfig,System.Collections.Generic.IEnumerable{System.String},System.String,System.String,AppsettingsDiff.ConfigDifferOptions)">
+            <summary>
+            Compares two flat configurations and reports added, removed and changed keys.
+            </summary>
+            <param name="baseline">The baseline configuration.</param>
+            <param name="target">The target configuration.</param>
+            <param name="ignoreKeys">Optional key patterns to skip; supports <c>*</c> wildcards, otherwise matched as a case-insensitive substring.</param>
+            <param name="basePath">Optional identifier for the baseline (e.g. a file path) recorded in the result.</param>
+            <param name="targetPath">Optional identifier for the target (e.g. a file path) recorded in the result.</param>
+            <param name="options">Optional configuration options for the diff operation.</param>
+            <returns>A <see cref="T:AppsettingsDiff.DiffResult"/> describing the differences.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown when <paramref name="baseline"/> or <paramref name="target"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigDiffer.ExceedsMaxDepth(System.String,System.Nullable{System.Int32})">
+            <summary>
+            Determines if a key path exceeds the maximum depth.
+            </summary>
+            <param name="key">The configuration key path.</param>
+            <param name="maxDepth">The maximum allowed depth (null or 0 means no limit).</param>
+            <returns>True if the key path exceeds the maximum depth; otherwise false.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigDiffer.AreValuesEqualAsBlobs(System.String,System.String,System.String,System.Nullable{System.Int32})">
+            <summary>
+            Compares two configuration values as opaque blobs when they exceed max depth.
+            </summary>
+            <param name="key">The configuration key.</param>
+            <param name="value1">The baseline value.</param>
+            <param name="value2">The target value.</param>
+            <param name="maxDepth">The maximum allowed depth.</param>
+            <returns>True if the values are equal as opaque blobs; otherwise false.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigDiffer.AreValuesEqual(System.String,System.String,AppsettingsDiff.ConfigDifferOptions)">
+            <summary>
+            Compares two configuration values for equality, with special handling for arrays when unordered comparison is enabled.
+            </summary>
+            <param name="value1">The first value to compare.</param>
+            <param name="value2">The second value to compare.</param>
+            <param name="options">The diff options that may enable unordered array comparison.</param>
+            <returns>True if the values are equal; otherwise false.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigDiffer.IsArrayValue(System.String)">
+            <summary>
+            Determines if a value represents an array element (contains array index notation).
+            </summary>
+            <param name="value">The value to check.</param>
+            <returns>True if the value is an array element; otherwise false.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigDiffer.DetectJsonType(System.String)">
+            <summary>
+            Detects the JSON type of a configuration value string.
+            </summary>
+            <param name="value">The value to analyze.</param>
+            <returns>The detected type ("string", "number", "boolean", "object", "null", or "array").</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigDiffer.HasDifferentTypes(System.String,System.String)">
+            <summary>
+            Determines if two values have different types.
+            </summary>
+            <param name="value1">The first value.</param>
+            <param name="value2">The second value.</param>
+            <returns>True if the types are different; otherwise false.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigDiffer.MatchesPathPrefix(System.String,System.String)">
+            <summary>
+            Determines if a key matches the path prefix filter.
+            </summary>
+            <param name="key">The configuration key to check.</param>
+            <param name="pathPrefix">The path prefix to filter by (null or empty means no filtering).</param>
+            <returns>True if the key matches the prefix filter; otherwise false.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigDiffer.ExtractArrayKey(System.String)">
+            <summary>
+            Extracts the base array key from an array element key (e.g., "MyArray[0]" -> "MyArray").
+            </summary>
+            <param name="arrayElementKey">The array element key.</param>
+            <returns>The base array key.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigDiffer.ExtractArrayValues(System.String)">
+            <summary>
+            Extracts all values from an array representation.
+            For "MyArray[0]:value1\nMyArray[1]:value2", returns {"value1", "value2"}.
+            </summary>
+            <param name="arrayText">The text containing array elements.</param>
+            <returns>A set of array values.</returns>
+        </member>
+        <member name="T:AppsettingsDiff.ConfigPath">
+            <summary>
+            Represents a configuration key path in a normalized format.
+            Uses colon-separated notation for nested keys (e.g., "Section:Subsection:Key").
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigPath.#ctor(System.String)">
+            <summary>
+            Initializes a new instance of the <see cref="T:AppsettingsDiff.ConfigPath"/> struct.
+            </summary>
+            <param name="path">The configuration key path.</param>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="path"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:AppsettingsDiff.ConfigPath.Path">
+            <summary>
+            Gets the string representation of the configuration path.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.ConfigPath.IsEmpty">
+            <summary>
+            Gets a value indicating whether this path is empty or null.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigPath.FromString(System.String)">
+            <summary>
+            Creates a <see cref="T:AppsettingsDiff.ConfigPath"/> from a string path.
+            </summary>
+            <param name="path">The configuration key path.</param>
+            <returns>A new <see cref="T:AppsettingsDiff.ConfigPath"/> instance.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigPath.op_Implicit(System.String)~AppsettingsDiff.ConfigPath">
+            <summary>
+            Implicitly converts a string to a <see cref="T:AppsettingsDiff.ConfigPath"/>.
+            </summary>
+            <param name="path">The configuration key path.</param>
+            <returns>A new <see cref="T:AppsettingsDiff.ConfigPath"/> instance.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigPath.op_Implicit(AppsettingsDiff.ConfigPath)~System.String">
+            <summary>
+            Implicitly converts a <see cref="T:AppsettingsDiff.ConfigPath"/> to a string.
+            </summary>
+            <param name="path">The configuration path.</param>
+            <returns>The string representation of the path.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigPath.ToString">
+            <summary>
+            Returns the string representation of the configuration path.
+            </summary>
+            <returns>The path string.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigPath.Equals(System.Object)">
+            <summary>
+            Determines whether this instance and a specified object have the same value.
+            </summary>
+            <param name="obj">The object to compare to this instance.</param>
+            <returns><see langword="true"/> if <paramref name="obj"/> is a <see cref="T:AppsettingsDiff.ConfigPath"/> and equals the value of this instance; otherwise, <see langword="false"/>.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigPath.Equals(AppsettingsDiff.ConfigPath)">
+            <summary>
+            Determines whether this instance and another instance have the same value.
+            </summary>
+            <param name="other">The instance to compare to this instance.</param>
+            <returns><see langword="true"/> if the value of this instance equals the value of the <paramref name="other"/> parameter; otherwise, <see langword="false"/>.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigPath.GetHashCode">
+            <summary>
+            Returns the hash code for this instance.
+            </summary>
+            <returns>A 32-bit signed integer hash code.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigPath.CompareTo(AppsettingsDiff.ConfigPath)">
+            <summary>
+            Compares this instance to a specified <see cref="T:AppsettingsDiff.ConfigPath"/> and returns an indication of their relative values.
+            </summary>
+            <param name="other">An instance to compare.</param>
+            <returns>
+            A signed number indicating the relative values of this instance and <paramref name="other"/>.
+            Returns less than zero if this instance is less than <paramref name="other"/>, zero if this instance is equal to <paramref name="other"/>,
+            and greater than zero if this instance is greater than <paramref name="other"/>.
+            </returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigPath.CompareTo(System.Object)">
+            <summary>
+            Compares this instance to a specified object and returns an indication of their relative values.
+            </summary>
+            <param name="obj">An object to compare, or null.</param>
+            <returns>
+            A signed number indicating the relative values of this instance and <paramref name="obj"/>.
+            Returns less than zero if this instance is less than <paramref name="obj"/>, zero if this instance is equal to <paramref name="obj"/>,
+            and greater than zero if this instance is greater than <paramref name="obj"/>.
+            </returns>
+            <exception cref="T:System.ArgumentException">Thrown if <paramref name="obj"/> is not a <see cref="T:AppsettingsDiff.ConfigPath"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigPath.op_Equality(AppsettingsDiff.ConfigPath,AppsettingsDiff.ConfigPath)">
+            <summary>
+            Determines whether two <see cref="T:AppsettingsDiff.ConfigPath"/> instances have the same value.
+            </summary>
+            <param name="left">The first instance.</param>
+            <param name="right">The second instance.</param>
+            <returns><see langword="true"/> if <paramref name="left"/> and <paramref name="right"/> have the same value; otherwise, <see langword="false"/>.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigPath.op_Inequality(AppsettingsDiff.ConfigPath,AppsettingsDiff.ConfigPath)">
+            <summary>
+            Determines whether two <see cref="T:AppsettingsDiff.ConfigPath"/> instances have different values.
+            </summary>
+            <param name="left">The first instance.</param>
+            <param name="right">The second instance.</param>
+            <returns><see langword="true"/> if <paramref name="left"/> and <paramref name="right"/> have different values; otherwise, <see langword="false"/>.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigPath.op_LessThan(AppsettingsDiff.ConfigPath,AppsettingsDiff.ConfigPath)">
+            <summary>
+            Determines whether the left <see cref="T:AppsettingsDiff.ConfigPath"/> is less than the right <see cref="T:AppsettingsDiff.ConfigPath"/>.
+            </summary>
+            <param name="left">The first instance.</param>
+            <param name="right">The second instance.</param>
+            <returns><see langword="true"/> if <paramref name="left"/> is less than <paramref name="right"/>; otherwise, <see langword="false"/>.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigPath.op_GreaterThan(AppsettingsDiff.ConfigPath,AppsettingsDiff.ConfigPath)">
+            <summary>
+            Determines whether the left <see cref="T:AppsettingsDiff.ConfigPath"/> is greater than the right <see cref="T:AppsettingsDiff.ConfigPath"/>.
+            </summary>
+            <param name="left">The first instance.</param>
+            <param name="right">The second instance.</param>
+            <returns><see langword="true"/> if <paramref name="left"/> is greater than <paramref name="right"/>; otherwise, <see langword="false"/>.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigPath.op_LessThanOrEqual(AppsettingsDiff.ConfigPath,AppsettingsDiff.ConfigPath)">
+            <summary>
+            Determines whether the left <see cref="T:AppsettingsDiff.ConfigPath"/> is less than or equal to the right <see cref="T:AppsettingsDiff.ConfigPath"/>.
+            </summary>
+            <param name="left">The first instance.</param>
+            <param name="right">The second instance.</param>
+            <returns><see langword="true"/> if <paramref name="left"/> is less than or equal to <paramref name="right"/>; otherwise, <see langword="false"/>.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigPath.op_GreaterThanOrEqual(AppsettingsDiff.ConfigPath,AppsettingsDiff.ConfigPath)">
+            <summary>
+            Determines whether the left <see cref="T:AppsettingsDiff.ConfigPath"/> is greater than or equal to the right <see cref="T:AppsettingsDiff.ConfigPath"/>.
+            </summary>
+            <param name="left">The first instance.</param>
+            <param name="right">The second instance.</param>
+            <returns><see langword="true"/> if <paramref name="left"/> is greater than or equal to <paramref name="right"/>; otherwise, <see langword="false"/>.</returns>
+        </member>
+        <member name="T:AppsettingsDiff.ConfigSchemaExtensions">
+            <summary>
+            Provides extension methods for <see cref="T:AppsettingsDiff.ConfigSchema"/> to enhance schema validation and configuration handling.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigSchemaExtensions.IsRequiredKey(AppsettingsDiff.ConfigSchema,System.String)">
+            <summary>
+            Determines whether the specified key is required according to the schema.
+            </summary>
+            <param name="schema">The schema to check against.</param>
+            <param name="key">The key to check.</param>
+            <returns><see langword="true"/> if the key is required; otherwise, <see langword="false"/>.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="schema"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigSchemaExtensions.TryGetTypeHint(AppsettingsDiff.ConfigSchema,System.String,System.String@)">
+            <summary>
+            Gets the type hint for the specified key if it exists.
+            </summary>
+            <param name="schema">The schema to get the type hint from.</param>
+            <param name="key">The key to get the type hint for.</param>
+            <param name="typeHint">When this method returns, contains the type hint if the key exists; otherwise, <see langword="null"/>.</param>
+            <returns><see langword="true"/> if the key has a type hint; otherwise, <see langword="false"/>.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="schema"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigSchemaExtensions.ValidateType(AppsettingsDiff.ConfigSchema,System.String,System.String)">
+            <summary>
+            Validates that a configuration value matches its declared type hint.
+            </summary>
+            <param name="schema">The schema containing type hints.</param>
+            <param name="key">The configuration key to validate.</param>
+            <param name="value">The configuration value to validate.</param>
+            <returns>A <see cref="T:AppsettingsDiff.SchemaViolation"/> if validation fails; otherwise, <see langword="null"/>.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="schema"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigSchemaExtensions.GetTypedKeys(AppsettingsDiff.ConfigSchema)">
+            <summary>
+            Gets all keys that have type hints defined in the schema.
+            </summary>
+            <param name="schema">The schema to get typed keys from.</param>
+            <returns>An enumerable of keys with type hints.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="schema"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="T:AppsettingsDiff.ConsoleDiffReportWriter">
+            <summary>
+            Writes diff results to the console with color coding.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.ConsoleDiffReportWriter.#ctor(AppsettingsDiff.SensitiveKeyDetector,System.Boolean,System.Boolean)">
+            <summary>
+            Initializes a new instance of the <see cref="T:AppsettingsDiff.ConsoleDiffReportWriter"/> class.
+            </summary>
+            <param name="detector">Detector used to identify sensitive keys.</param>
+            <param name="showSecrets">When <see langword="true"/>, sensitive values are written verbatim instead of redacted.</param>
+            <param name="maskSensitive">When <see langword="true"/>, sensitive values are masked with *** instead of showing [REDACTED].</param>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="detector"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.ConsoleDiffReportWriter.WriteConsole(AppsettingsDiff.DiffResult,System.Boolean)">
+            <summary>
+            Writes a colour‑coded table to the console.
+            Added – green
+            Removed – red
+            Changed – yellow
+            TypeChanged – magenta
+            Sensitive values are redacted unless <c>showSecrets</c> is true.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.ConsoleDiffReportWriter.WriteMarkdown(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Writes a GitHub‑flavored markdown report to the supplied writer.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.ConsoleDiffReportWriter.WriteHtml(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Writes a self-contained HTML report to the supplied writer.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.ConsoleDiffReportWriter.WriteJsonPatch(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Streams a JSON Patch (RFC 6902) representation of the diff directly to the supplied writer.
+            </summary>
+            <exception cref="T:System.NotSupportedException">Always thrown; use <see cref="T:AppsettingsDiff.JsonPatchDiffReportWriter"/> instead.</exception>
+        </member>
+        <member name="T:AppsettingsDiff.DiffEntryJsonWriter">
+            <summary>
+            Shared low-level JSON serialization for <see cref="T:AppsettingsDiff.DiffResult"/> instances.
+            Streams entries straight through a <see cref="T:System.Text.Json.Utf8JsonWriter"/> instead of projecting
+            them into an anonymous-type object graph and serializing that graph via reflection,
+            which is what every <see cref="T:AppsettingsDiff.IDiffReportWriter"/> implementation used to do independently.
+            This matters once a diff spans hundreds of environments and thousands of keys: the
+            object-graph approach allocates one throwaway object per entry before serialization can
+            even begin, while this writes each field directly to the destination buffer.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffEntryJsonWriter.WriteFullResult(System.Text.Json.Utf8JsonWriter,AppsettingsDiff.DiffResult,System.Func{System.String,System.Boolean,System.String})">
+            <summary>
+            Writes the full diff result (base/target paths and every entry) to the supplied
+            <see cref="T:System.Text.Json.Utf8JsonWriter"/>.
+            </summary>
+            <param name="jsonWriter">The writer entries are streamed to.</param>
+            <param name="result">The diff result to serialize.</param>
+            <param name="redact">Callback that redacts a raw value according to the caller's redaction policy.</param>
+            <exception cref="T:System.ArgumentNullException">
+            Thrown if <paramref name="jsonWriter"/>, <paramref name="result"/>, or <paramref name="redact"/> is <see langword="null"/>.
+            </exception>
+        </member>
+        <member name="F:AppsettingsDiff.DiffEntryJsonWriter.FlushEveryEntries">
+            <summary>
+            Number of entries written between periodic <see cref="M:System.Text.Json.Utf8JsonWriter.Flush"/> calls
+            while streaming a large diff result.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffEntryJsonWriter.WriteFullResultTo(System.IO.TextWriter,AppsettingsDiff.DiffResult,System.Boolean,System.Func{System.String,System.Boolean,System.String})">
+            <summary>
+            Serializes the full diff result directly to the supplied <see cref="T:System.IO.TextWriter"/> using a
+            <see cref="T:System.Text.Json.Utf8JsonWriter"/> over a <see cref="T:AppsettingsDiff.Utf8TextWriterStream"/> adapter, decoding and
+            forwarding bytes as they are produced instead of buffering the whole payload in memory first.
+            Avoids both the anonymous-type object graph the reflection-based
+            <see cref="M:System.Text.Json.JsonSerializer.Serialize``1(``0,System.Text.Json.JsonSerializerOptions)"/> path requires and
+            the full in-memory copy a <see cref="T:System.IO.MemoryStream"/> intermediary would otherwise force.
+            </summary>
+            <param name="writer">The destination writer.</param>
+            <param name="result">The diff result to serialize.</param>
+            <param name="indented">Whether to format the JSON with indentation.</param>
+            <param name="redact">Callback that redacts a raw value according to the caller's redaction policy.</param>
+            <exception cref="T:System.ArgumentNullException">
+            Thrown if <paramref name="writer"/>, <paramref name="result"/>, or <paramref name="redact"/> is <see langword="null"/>.
+            </exception>
+        </member>
+        <member name="T:AppsettingsDiff.DiffReportWriterBase">
+            <summary>
+            Common base for <see cref="T:AppsettingsDiff.IDiffReportWriter"/> implementations. Centralizes construction
+            and secret redaction behind a single <see cref="T:AppsettingsDiff.RedactionPolicy"/> instance so that every
+            output format applies the exact same rules to sensitive values.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.DiffReportWriterBase.Policy">
+            <summary>
+            Gets the redaction policy shared by all output methods on this writer.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterBase.#ctor(AppsettingsDiff.SensitiveKeyDetector,System.Boolean,System.Boolean)">
+            <summary>
+            Initializes a new instance of the <see cref="T:AppsettingsDiff.DiffReportWriterBase"/> class.
+            </summary>
+            <param name="detector">Detector used to identify sensitive keys.</param>
+            <param name="showSecrets">When <see langword="true"/>, sensitive values are written verbatim instead of redacted.</param>
+            <param name="maskSensitive">When <see langword="true"/>, sensitive values are masked with *** instead of showing [REDACTED].</param>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="detector"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterBase.Redact(System.String,System.Boolean)">
+            <summary>
+            Redacts a value according to the shared <see cref="T:AppsettingsDiff.RedactionPolicy"/>.
+            </summary>
+            <param name="value">The raw value to redact.</param>
+            <param name="isSensitive">Whether the value has been flagged as sensitive.</param>
+            <returns>The redacted or original value.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterBase.WriteConsole(AppsettingsDiff.DiffResult,System.Boolean)">
+            <inheritdoc />
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterBase.ToJson(AppsettingsDiff.DiffResult)">
+            <inheritdoc />
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterBase.ToJson(AppsettingsDiff.DiffResult,System.Boolean)">
+            <inheritdoc />
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterBase.WriteJson(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <inheritdoc />
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterBase.WriteJson(AppsettingsDiff.DiffResult,System.IO.TextWriter,System.Boolean)">
+            <summary>
+            Streams the diff result as JSON, indented or compact, directly to the supplied writer via a
+            <see cref="T:System.Text.Json.Utf8JsonWriter"/>, avoiding the intermediate anonymous-type object
+            graph the reflection-based serializer would otherwise require.
+            </summary>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="result"/> or <paramref name="writer"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterBase.WriteMarkdown(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <inheritdoc />
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterBase.WriteHtml(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <inheritdoc />
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterBase.ToJsonPatch(AppsettingsDiff.DiffResult)">
+            <inheritdoc />
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterBase.WriteJsonPatch(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <inheritdoc />
+        </member>
+        <member name="T:AppsettingsDiff.DiffReportWriterExtensions">
+            <summary>
+            Extension methods for <see cref="T:AppsettingsDiff.IDiffReportWriter"/> that provide additional
+            convenience methods for working with diff results.
+            </summary>
+            <remarks>
+            These extension methods delegate to the underlying <see cref="T:AppsettingsDiff.IDiffReportWriter"/> instance
+            while providing a more fluent API surface for common operations.
+            </remarks>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterExtensions.WriteConsoleSummary(AppsettingsDiff.IDiffReportWriter,AppsettingsDiff.DiffResult)">
+            <summary>
+            Writes a summary of differences to the console with counts by type.
+            Includes a summary header showing total changes and breakdown by type.
+            </summary>
+            <param name="writer">The <see cref="T:AppsettingsDiff.IDiffReportWriter"/> instance.</param>
+            <param name="result">The diff result to write.</param>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="writer"/> or <paramref name="result"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterExtensions.ToCompactJson(AppsettingsDiff.IDiffReportWriter,AppsettingsDiff.DiffResult,System.Boolean)">
+            <summary>
+            Serializes the diff result to a compact JSON string (single line).
+            Useful for logging or embedding in other JSON structures.
+            Sensitive values are redacted unless <paramref name="showSecrets"/> is true.
+            </summary>
+            <param name="writer">The <see cref="T:AppsettingsDiff.IDiffReportWriter"/> instance.</param>
+            <param name="result">The diff result to serialize.</param>
+            <param name="showSecrets">Whether to include sensitive values in the output.</param>
+            <returns>A compact JSON representation.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="writer"/> or <paramref name="result"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterExtensions.ToMarkdownSummary(AppsettingsDiff.IDiffReportWriter,AppsettingsDiff.DiffResult)">
+            <summary>
+            Generates a markdown summary table showing only the counts and statistics.
+            Useful for brief overview in documentation or README files.
+            </summary>
+            <param name="writer">The <see cref="T:AppsettingsDiff.IDiffReportWriter"/> instance.</param>
+            <param name="result">The diff result to format.</param>
+            <returns>A markdown formatted summary.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="writer"/> or <paramref name="result"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterExtensions.HasDifferences(AppsettingsDiff.IDiffReportWriter,AppsettingsDiff.DiffResult)">
+            <summary>
+            Checks if there are any differences in the result.
+            </summary>
+            <param name="writer">The <see cref="T:AppsettingsDiff.IDiffReportWriter"/> instance.</param>
+            <param name="result">The diff result to check.</param>
+            <returns>True if there are differences, false otherwise.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="writer"/> or <paramref name="result"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterExtensions.GetTotalDifferenceCount(AppsettingsDiff.IDiffReportWriter,AppsettingsDiff.DiffResult)">
+            <summary>
+            Gets the total number of differences.
+            </summary>
+            <param name="writer">The <see cref="T:AppsettingsDiff.IDiffReportWriter"/> instance.</param>
+            <param name="result">The diff result to count.</param>
+            <returns>The total count of differences.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="writer"/> or <paramref name="result"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="T:AppsettingsDiff.DiffReportWriterFactory">
+             <summary>
+             Factory for creating <see cref="T:AppsettingsDiff.IDiffReportWriter"/> instances based on format name.
+            
+             <para>This factory delegates to <see cref="T:AppsettingsDiff.DiffReportWriterRegistry"/> for format resolution,
+             making it easy to extend with new writers by registering them in the registry.</para>
+             </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterFactory.Create(System.String,AppsettingsDiff.SensitiveKeyDetector,System.Boolean,System.Boolean)">
+            <summary>
+            Creates an appropriate <see cref="T:AppsettingsDiff.IDiffReportWriter"/> based on the format name.
+            </summary>
+            <param name="format">The output format name (console, json, markdown, html, jsonpatch, summary-json, or null for console).</param>
+            <param name="detector">The sensitive key detector.</param>
+            <param name="showSecrets">Whether to show sensitive values.</param>
+            <param name="maskSensitive">Whether to mask sensitive values with *** instead of [REDACTED].</param>
+            <returns>An <see cref="T:AppsettingsDiff.IDiffReportWriter"/> instance.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="detector"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="T:AppsettingsDiff.DiffReportWriterJsonExtensions">
+            <summary>
+            Provides System.Text.Json serialization extensions for <see cref="T:AppsettingsDiff.IDiffReportWriter"/>.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterJsonExtensions.ToJson(AppsettingsDiff.IDiffReportWriter,AppsettingsDiff.DiffResult,System.Boolean)">
+            <summary>
+            Serializes a diff result to JSON using the specified <see cref="T:AppsettingsDiff.IDiffReportWriter"/> instance.
+            </summary>
+            <param name="writer">The <see cref="T:AppsettingsDiff.IDiffReportWriter"/> instance used for serialization configuration</param>
+            <param name="result">The diff result to serialize</param>
+            <param name="indented">Whether to format the JSON with indentation for readability</param>
+            <returns>A JSON representation of the diff result</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown when <paramref name="writer"/> or <paramref name="result"/> is <see langword="null"/></exception>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterJsonExtensions.FromJson(System.String,AppsettingsDiff.SensitiveKeyDetector,System.Boolean)">
+            <summary>
+            Deserializes a JSON string to a <see cref="T:AppsettingsDiff.DiffResult"/> instance.
+            </summary>
+            <param name="json">The JSON string to deserialize</param>
+            <param name="detector">The <see cref="T:AppsettingsDiff.SensitiveKeyDetector"/> used for redaction configuration</param>
+            <param name="showSecrets">Whether to include sensitive values in the output</param>
+            <returns>A new <see cref="T:AppsettingsDiff.DiffResult"/> instance, or null if the JSON represents a null value</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="json"/> or <paramref name="detector"/> is <see langword="null"/></exception>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterJsonExtensions.TryFromJson(System.String,AppsettingsDiff.SensitiveKeyDetector,AppsettingsDiff.DiffResult@,System.Boolean)">
+            <summary>
+            Attempts to deserialize a JSON string to a <see cref="T:AppsettingsDiff.DiffResult"/> instance.
+            </summary>
+            <param name="json">The JSON string to deserialize</param>
+            <param name="detector">The <see cref="T:AppsettingsDiff.SensitiveKeyDetector"/> used for redaction configuration</param>
+            <param name="value">Receives the deserialized <see cref="T:AppsettingsDiff.DiffResult"/> instance, or null if deserialization fails</param>
+            <param name="showSecrets">Whether to include sensitive values in the output</param>
+            <returns>True if deserialization succeeded; false otherwise</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="json"/> or <paramref name="detector"/> is <see langword="null"/></exception>
+        </member>
+        <member name="T:AppsettingsDiff.DiffReportWriterJsonExtensions.DiffResultJson">
+            <summary>
+            Internal DTO for JSON deserialization.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.DiffReportWriterJsonExtensions.DiffEntryJson">
+            <summary>
+            Internal DTO for JSON deserialization.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.DiffReportWriterRegistry">
+            <summary>
+            Registry for mapping format names to <see cref="T:AppsettingsDiff.IDiffReportWriter"/> factory functions.
+            This allows new writers to register themselves without modifying switch statements.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.DiffReportWriterRegistry.WriterFactory">
+            <summary>
+            Delegate for creating a diff report writer instance.
+            </summary>
+            <param name="detector">The sensitive key detector.</param>
+            <param name="showSecrets">Whether to show sensitive values.</param>
+            <param name="maskSensitive">Whether to mask sensitive values with *** instead of [REDACTED].</param>
+            <returns>An <see cref="T:AppsettingsDiff.IDiffReportWriter"/> instance.</returns>
+        </member>
+        <member name="T:AppsettingsDiff.DiffReportWriterRegistry.FormatWriter">
+            <summary>
+            Delegate for writing a diff result in a specific format.
+            </summary>
+            <param name="writer">The writer instance.</param>
+            <param name="result">The diff result to write.</param>
+            <param name="schemaViolations">List of schema violations to include.</param>
+            <param name="noColor">Whether to disable ANSI color output.</param>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterRegistry.Register(System.String,AppsettingsDiff.DiffReportWriterRegistry.WriterFactory)">
+            <summary>
+            Registers a new format with the registry.
+            </summary>
+            <param name="formatName">The format name to register (e.g., "console", "json", "markdown").</param>
+            <param name="factory">The factory function that creates the writer instance.</param>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="formatName"/> or <paramref name="factory"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentException">Thrown if <paramref name="formatName"/> is empty or whitespace.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterRegistry.GetRegisteredFormats">
+            <summary>
+            Gets all registered format names.
+            </summary>
+            <returns>An enumerable of registered format names.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterRegistry.Create(System.String,AppsettingsDiff.SensitiveKeyDetector,System.Boolean,System.Boolean)">
+            <summary>
+            Creates a diff report writer for the specified format.
+            </summary>
+            <param name="format">The output format name (console, json, markdown, html, jsonpatch, summary-json, or null for console).</param>
+            <param name="detector">The sensitive key detector.</param>
+            <param name="showSecrets">Whether to show sensitive values.</param>
+            <param name="maskSensitive">Whether to mask sensitive values with *** instead of [REDACTED].</param>
+            <returns>An <see cref="T:AppsettingsDiff.IDiffReportWriter"/> instance.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="detector"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterRegistry.RegisterFormat(System.String,AppsettingsDiff.DiffReportWriterRegistry.FormatWriter)">
+            <summary>
+            Registers a new format writer with the registry.
+            </summary>
+            <param name="formatName">The format name to register (e.g., "console", "json", "markdown").</param>
+            <param name="writer">The format writer function that handles output.</param>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="formatName"/> or <paramref name="writer"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentException">Thrown if <paramref name="formatName"/> is empty or whitespace.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterRegistry.GetFormatDescription(System.String)">
+            <summary>
+            Gets the description for a format.
+            </summary>
+            <param name="format">The format name.</param>
+            <returns>A description of what the format does, or null if format is not found.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterRegistry.GetFormatWriter(System.String)">
+            <summary>
+            Gets the format writer for the specified format.
+            </summary>
+            <param name="format">The output format name.</param>
+            <returns>A format writer function, or null if format is not found.</returns>
+        </member>
+        <member name="T:AppsettingsDiff.DiffReportWriterSecretRedactionTests">
+            <summary>
+            Tests to verify that all IDiffReportWriter implementations properly redact sensitive values
+            when showSecrets=false, preventing secret leakage through any output format.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterSecretRedactionTests.CreateTestDiffResult">
+            <summary>
+            Creates a DiffResult with both sensitive and non-sensitive entries for testing.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterSecretRedactionTests.ConsoleDiffReportWriter_RedactsSecrets_WhenShowSecretsIsFalse">
+            <summary>
+            Tests that ConsoleDiffReportWriter respects showSecrets=false
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterSecretRedactionTests.ConsoleDiffReportWriter_ShowsSecrets_WhenShowSecretsIsTrue">
+            <summary>
+            Tests that ConsoleDiffReportWriter shows secrets when showSecrets=true
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterSecretRedactionTests.MarkdownDiffReportWriter_RedactsSecrets_WhenShowSecretsIsFalse">
+            <summary>
+            Tests that MarkdownDiffReportWriter respects showSecrets=false
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterSecretRedactionTests.MarkdownDiffReportWriter_ShowsSecrets_WhenShowSecretsIsTrue">
+            <summary>
+            Tests that MarkdownDiffReportWriter shows secrets when showSecrets=true
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterSecretRedactionTests.HtmlDiffReportWriter_RedactsSecrets_WhenShowSecretsIsFalse">
+            <summary>
+            Tests that HtmlDiffReportWriter respects showSecrets=false
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterSecretRedactionTests.HtmlDiffReportWriter_ShowsSecrets_WhenShowSecretsIsTrue">
+            <summary>
+            Tests that HtmlDiffReportWriter shows secrets when showSecrets=true
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterSecretRedactionTests.JsonPatchDiffReportWriter_RedactsSecrets_WhenShowSecretsIsFalse">
+            <summary>
+            Tests that JsonPatchDiffReportWriter respects showSecrets=false
+            This is the critical test - JSON Patch operations contain raw "value" fields
+            that could leak secrets if not properly redacted.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterSecretRedactionTests.JsonPatchDiffReportWriter_ShowsSecrets_WhenShowSecretsIsTrue">
+            <summary>
+            Tests that JsonPatchDiffReportWriter shows secrets when showSecrets=true
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterSecretRedactionTests.SummaryJsonDiffReportWriter_RedactsSecrets_WhenShowSecretsIsFalse">
+            <summary>
+            Tests that SummaryJsonDiffReportWriter respects showSecrets=false
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterSecretRedactionTests.SummaryJsonDiffReportWriter_ShowsSecrets_WhenShowSecretsIsTrue">
+            <summary>
+            Tests that SummaryJsonDiffReportWriter shows secrets when showSecrets=true
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterSecretRedactionTests.AllWriters_RedactSecrets_WhenShowSecretsIsFalse">
+            <summary>
+            Cross-writer test: All writers receive the same DiffResult and all must redact secrets
+            when showSecrets=false. This ensures consistency across all output formats.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterSecretRedactionTests.AllWriters_ShowSecrets_WhenShowSecretsIsTrue">
+            <summary>
+            Cross-writer test: All writers show secrets when showSecrets=true
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DiffReportWriterSecretRedactionTests.AllWriters_UseMaskedTokens_WhenMaskSensitiveIsTrue">
+            <summary>
+            Tests that masked redaction works correctly (shows *** instead of [REDACTED])
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.DotEnvReader">
+            <summary>
+            Reads .env files (KEY=VALUE) and returns a flat dictionary of configuration values.
+            Supports comments (lines starting with # or ;), optional leading "export" keyword,
+            and quoted values (single or double quotes).
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReader.ReadFile(System.String)">
+            <summary>
+            Parses a .env file into a dictionary.
+            </summary>
+            <param name="path">Path to the .env file.</param>
+            <returns>Dictionary of key/value pairs.</returns>
+            <exception cref="T:System.IO.FileNotFoundException">If the file does not exist.</exception>
+        </member>
+        <member name="T:AppsettingsDiff.DotEnvReaderTests">
+            <summary>
+            Test scenarios for DotEnvReader to improve branch and edge-case coverage.
+            Tests parsing behavior for edge cases, malformed lines, and special characters.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_NullPath_ThrowsArgumentException">
+            <summary>
+            Tests that ReadFile throws ArgumentException when path is null.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_EmptyPath_ThrowsArgumentException">
+            <summary>
+            Tests that ReadFile throws ArgumentException when path is empty.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_WhitespacePath_ThrowsArgumentException">
+            <summary>
+            Tests that ReadFile throws ArgumentException when path is whitespace.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_NonExistentFile_ThrowsFileNotFoundException">
+            <summary>
+            Tests that ReadFile throws FileNotFoundException when file does not exist.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_CommentLinesStartingWithHash_AreSkipped">
+            <summary>
+            Tests that comment lines (starting with #) are skipped.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_CommentLinesStartingWithSemicolon_AreSkipped">
+            <summary>
+            Tests that comment lines (starting with ;) are skipped.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_BlankLines_AreSkipped">
+            <summary>
+            Tests that blank lines are skipped.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_LinesWithoutEqualsSign_AreIgnored">
+            <summary>
+            Tests that lines without '=' are ignored (malformed lines).
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_LineStartingWithEqualsSign_Ignored">
+            <summary>
+            Tests that lines with '=' at the beginning are ignored (no key).
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_KeysWithWhitespace_AreTrimmed">
+            <summary>
+            Tests that keys with leading/trailing whitespace are trimmed.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_ValuesWithWhitespace_AreTrimmed">
+            <summary>
+            Tests that values with leading/trailing whitespace are trimmed.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_DoubleQuotedValues_AreParsedCorrectly">
+            <summary>
+            Tests that double-quoted values are parsed correctly.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_SingleQuotedValues_AreParsedCorrectly">
+            <summary>
+            Tests that single-quoted values are parsed correctly.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_DuplicateKeys_LastWins">
+            <summary>
+            Tests that duplicate keys follow last-wins behavior.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_CaseInsensitiveKeys">
+            <summary>
+            Tests that keys are case-insensitive (ordinal ignore case).
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_ExportPrefix_IsRemoved">
+            <summary>
+            Tests that export prefix is removed correctly.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_ExportPrefixMixedCase_IsRemoved">
+            <summary>
+            Tests that export prefix with mixed case is removed correctly.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_EmptyValues_ArePreserved">
+            <summary>
+            Tests that empty values are preserved.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_ValuesWithSpecialCharacters_ArePreserved">
+            <summary>
+            Tests that values with special characters are preserved.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_QuotedValuesWithEmbeddedEquals_NotTruncated">
+            <summary>
+            Tests that quoted values with embedded equals signs are parsed correctly (not truncated at =).
+            This is a regression test for the issue where '#' in quoted values would truncate the value.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_QuotedValuesWithEmbeddedHash_NotTruncated">
+            <summary>
+            Tests that quoted values with embedded hash characters are parsed correctly (not truncated at #).
+            This is a regression test for the issue where '#' in quoted values would truncate the value.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_ValuesWithTrailingBackslash_ArePreserved">
+            <summary>
+            Tests that values with trailing backslash are preserved.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.DotEnvReaderTests.ReadFile_CompleteRealisticEnvFile_ParsesCorrectly">
+            <summary>
+            Tests a complete realistic .env file with mixed content.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.EnvVarOverlay">
+            <summary>
+            Накладывает переменные окружения поверх FlatConfig по правилам ASP.NET Core.
+            Обрабатывает специальные префиксы (ASPNETCORE_, DOTNET_) и замену '__' на ':'
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlay.ReadFromEnvironment(System.String)">
+            <summary>
+            Считывает переменные окружения с указанным префиксом.
+            </summary>
+            <param name="prefix">Префикс для фильтрации переменных окружения (null - все переменные).</param>
+            <returns>Словарь переменных окружения.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlay.Normalize(System.Collections.Generic.IDictionary{System.String,System.String})">
+            <summary>
+            Нормализует переменные окружения: удаляет префиксы ASPNETCORE_ и DOTNET_, заменяет '__' на ':'.
+            </summary>
+            <param name="envVars">Исходные переменные окружения.</param>
+            <returns>Нормализованные переменные.</returns>
+            <exception cref="T:System.ArgumentNullException">Если <paramref name="envVars"/> равен <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlay.Apply(System.Collections.Generic.Dictionary{System.String,System.String},System.Collections.Generic.IDictionary{System.String,System.String},System.Collections.Generic.List{System.String}@)">
+            <summary>
+            Накладывает переменные окружения поверх конфигурации.
+            </summary>
+            <param name="config">Исходная конфигурация.</param>
+            <param name="envVars">Переменные окружения для наложения.</param>
+            <param name="overriddenKeys">Список ключей, которые были перекрыты (выходной параметр).</param>
+            <returns>Новая конфигурация с применёнными переменными окружения.</returns>
+            <exception cref="T:System.ArgumentNullException">Если <paramref name="config"/> или <paramref name="envVars"/> равен <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlay.Apply(System.Collections.Generic.Dictionary{System.String,System.String},System.Collections.Generic.IDictionary{System.String,System.String},System.String,System.Collections.Generic.List{System.String}@)">
+            <summary>
+            Накладывает переменные окружения поверх конфигурации, используя опциональный префикс.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.EnvVarOverlayTests">
+            <summary>
+            Test scenarios for EnvVarOverlay to improve branch and edge-case coverage.
+            Tests precedence rules and edge cases for environment variable overlay functionality.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.ReadFromEnvironment_NullPrefix_ThrowsArgumentNullException">
+            <summary>
+            Tests that ReadFromEnvironment throws ArgumentNullException when prefix is null.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.ReadFromEnvironment_WithPrefix_ReturnsFilteredVariables">
+            <summary>
+            Tests that ReadFromEnvironment filters variables by prefix correctly.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Normalize_NullInput_ThrowsArgumentNullException">
+            <summary>
+            Tests that Normalize throws ArgumentNullException when input is null.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Normalize_EmptyDictionary_ReturnsEmptyDictionary">
+            <summary>
+            Tests that Normalize returns empty dictionary for empty input.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Normalize_RemovesAspNetCorePrefix">
+            <summary>
+            Tests that Normalize removes ASPNETCORE_ prefix correctly.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Normalize_RemovesDotnetPrefix">
+            <summary>
+            Tests that Normalize removes DOTNET_ prefix correctly.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Normalize_ReplacesDoubleUnderscoreWithColon">
+            <summary>
+            Tests that Normalize replaces double underscore with colon correctly.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Normalize_CaseInsensitiveKeys">
+            <summary>
+            Tests that Normalize handles case-insensitive keys correctly.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_BasicOverride_Precedence">
+            <summary>
+            Tests that Apply correctly overrides existing values.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_NullConfig_ThrowsArgumentNullException">
+            <summary>
+            Tests that Apply throws ArgumentNullException when config is null.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_NullEnvVars_ThrowsArgumentNullException">
+            <summary>
+            Tests that Apply throws ArgumentNullException when envVars is null.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_EmptyStringValue_OverridesExistingValue">
+            <summary>
+            Tests that Apply correctly handles empty string values (overrides existing).
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_EmptyStringValue_CreatesNewKey">
+            <summary>
+            Tests that Apply correctly handles empty string values (creates new key).
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_NestedKeyViaDoubleUnderscore_OverridesNestedValue">
+            <summary>
+            Tests that Apply correctly handles nested keys via double underscore convention.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_DeeplyNestedKeyViaDoubleUnderscore_CreatesNewPath">
+            <summary>
+            Tests that Apply creates deeply nested paths when they don't exist.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_CaseInsensitiveMatching_OverridesWithDifferentCase">
+            <summary>
+            Tests that Apply handles case-insensitive matching correctly.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_WithCustomPrefix_FiltersAndStripsPrefix">
+            <summary>
+            Tests that Apply works correctly with custom prefix filtering and stripping.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_WithCustomPrefix_NoMatchingPrefix_ReturnsUnchangedConfig">
+            <summary>
+            Tests that Apply returns unchanged config when no variables match custom prefix.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_WithCustomPrefix_EmptyPrefix_UsesAllVariables">
+            <summary>
+            Tests that Apply with empty prefix uses all variables.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_WithCustomPrefix_NullPrefix_UsesAllVariables">
+            <summary>
+            Tests that Apply with null prefix uses all variables.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_CreatesNewKeys_WhenKeyDoesNotExist">
+            <summary>
+            Tests that Apply creates new keys when they don't exist in original config.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_WithAspNetCorePrefix_RemovesPrefixAndApplies">
+            <summary>
+            Tests that Apply correctly handles ASPNETCORE_ prefix removal and application.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_WithDotnetPrefix_RemovesPrefixAndApplies">
+            <summary>
+            Tests that Apply correctly handles DOTNET_ prefix removal and application.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_MultipleEnvVars_AllAppliedInOrder">
+            <summary>
+            Tests that Apply correctly applies multiple environment variables in order.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_WhitespaceInValues_PreservedAsIs">
+            <summary>
+            Tests that Apply preserves whitespace in values exactly as provided.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_SpecialCharactersInValues_PreservedAsIs">
+            <summary>
+            Tests that Apply preserves special characters in values exactly as provided.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_OverriddenKeysList_ContainsAllOverriddenKeys">
+            <summary>
+            Tests that Apply correctly tracks all overridden keys in the output list.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_OverriddenKeysList_EmptyWhenNoOverrides">
+            <summary>
+            Tests that Apply returns empty overridden keys list when no overrides occur.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_LinuxStyleCasing_OverridesWindowsStyleConfigKeys">
+            <summary>
+            Tests Linux-style lowercase environment variable names override Windows-style mixed case config keys.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.EnvVarOverlayTests.Apply_WindowsStyleCasing_OverridesLinuxStyleConfigKeys">
+            <summary>
+            Tests Windows-style mixed case environment variable names override Linux-style lowercase config keys.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.HtmlDiffReportWriter">
+            <summary>
+            Writes diff results as self-contained HTML reports with inline CSS styling.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.HtmlDiffReportWriter.#ctor(AppsettingsDiff.SensitiveKeyDetector,System.Boolean,System.Boolean)">
+            <summary>
+            Initializes a new instance of the <see cref="T:AppsettingsDiff.HtmlDiffReportWriter"/> class.
+            </summary>
+            <param name="detector">Detector used to identify sensitive keys.</param>
+            <param name="showSecrets">When <see langword="true"/>, sensitive values are written verbatim instead of redacted.</param>
+            <param name="maskSensitive">When <see langword="true"/>, sensitive values are masked with *** instead of showing [REDACTED].</param>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="detector"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.HtmlDiffReportWriter.WriteConsole(AppsettingsDiff.DiffResult,System.Boolean)">
+            <summary>
+            Writes a colour‑coded table to the console.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.HtmlDiffReportWriter.WriteMarkdown(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Writes a GitHub‑flavored markdown report to the supplied writer.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.HtmlDiffReportWriter.WriteHtml(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Writes a self-contained HTML report to the supplied writer.
+            Uses inline CSS for styling with color-coded sections:
+            Added – green background
+            Removed – red background
+            Changed – yellow background
+            TypeChanged – purple background
+            Sensitive values are redacted unless <c>showSecrets</c> is true.
+            </summary>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="result"/> or <paramref name="writer"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.HtmlDiffReportWriter.WriteJsonPatch(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Streams a JSON Patch (RFC 6902) representation of the diff directly to the supplied writer.
+            </summary>
+            <exception cref="T:System.NotSupportedException">Always thrown; use <see cref="T:AppsettingsDiff.JsonPatchDiffReportWriter"/> instead.</exception>
+        </member>
+        <member name="T:AppsettingsDiff.IDiffReportWriter">
+            <summary>
+            Interface for writing diff results to various output formats.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.IDiffReportWriter.WriteConsole(AppsettingsDiff.DiffResult,System.Boolean)">
+            <summary>
+            Writes a diff result to the console.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.IDiffReportWriter.ToJson(AppsettingsDiff.DiffResult)">
+            <summary>
+            Serializes the diff result to indented JSON.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.IDiffReportWriter.ToJson(AppsettingsDiff.DiffResult,System.Boolean)">
+            <summary>
+            Serializes the diff result to JSON, indented or compact.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.IDiffReportWriter.WriteJson(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Streams the diff result as indented JSON directly to the supplied writer, avoiding the
+            intermediate full-string allocation that <see cref="M:AppsettingsDiff.IDiffReportWriter.ToJson(AppsettingsDiff.DiffResult)"/> requires.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.IDiffReportWriter.WriteJson(AppsettingsDiff.DiffResult,System.IO.TextWriter,System.Boolean)">
+            <summary>
+            Streams the diff result as JSON, indented or compact, directly to the supplied writer,
+            avoiding the intermediate full-string allocation that <see cref="M:AppsettingsDiff.IDiffReportWriter.ToJson(AppsettingsDiff.DiffResult,System.Boolean)"/> requires.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.IDiffReportWriter.WriteMarkdown(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Writes a GitHub-flavored markdown report to the supplied writer.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.IDiffReportWriter.WriteHtml(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Writes a self-contained HTML report to the supplied writer.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.IDiffReportWriter.ToJsonPatch(AppsettingsDiff.DiffResult)">
+            <summary>
+            Generates a JSON Patch (RFC 6902) representation of the diff.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.IDiffReportWriter.WriteJsonPatch(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Streams a JSON Patch (RFC 6902) representation of the diff directly to the supplied writer,
+            avoiding the intermediate full-string allocation that <see cref="M:AppsettingsDiff.IDiffReportWriter.ToJsonPatch(AppsettingsDiff.DiffResult)"/> requires.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.JsonPatchDiffReportWriter">
+            <summary>
+            Generates JSON Patch (RFC 6902) representations of diffs.
+            Each difference is converted to a JSON Patch operation:
+            - Added keys become "add" operations
+            - Removed keys become "remove" operations
+            - Changed keys become "replace" operations
+            - TypeChanged keys become "replace" operations with type information in a custom property
+            Sensitive values are redacted unless <c>showSecrets</c> is true.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchDiffReportWriter.#ctor(AppsettingsDiff.SensitiveKeyDetector,System.Boolean,System.Boolean)">
+            <summary>
+            Initializes a new instance of the <see cref="T:AppsettingsDiff.JsonPatchDiffReportWriter"/> class.
+            </summary>
+            <param name="detector">Detector used to identify sensitive keys.</param>
+            <param name="showSecrets">When <see langword="true"/>, sensitive values are written verbatim instead of redacted.</param>
+            <param name="maskSensitive">When <see langword="true"/>, sensitive values are masked with *** instead of showing [REDACTED].</param>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="detector"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchDiffReportWriter.WriteConsole(AppsettingsDiff.DiffResult,System.Boolean)">
+            <summary>
+            Writes a colour‑coded table to the console.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchDiffReportWriter.WriteMarkdown(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Writes a GitHub‑flavored markdown report to the supplied writer.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchDiffReportWriter.WriteHtml(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Writes a self-contained HTML report to the supplied writer.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchDiffReportWriter.WriteJsonPatch(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Generates a JSON Patch (RFC 6902) representation of the diff.
+            Each difference is converted to a JSON Patch operation:
+            - Added keys become "add" operations
+            - Removed keys become "remove" operations
+            - Changed keys become "replace" operations
+            - TypeChanged keys become "replace" operations with type information in a custom property
+            Sensitive values are redacted unless <c>showSecrets</c> is true.
+            </summary>
+            <param name="result">The diff result to convert.</param>
+            <param name="writer">The destination writer.</param>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="result"/> or <paramref name="writer"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="T:AppsettingsDiff.JsonPatchOperation">
+            <summary>
+            Represents a JSON Patch operation according to RFC 6902
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.JsonPatchOperation.Op">
+            <summary>
+            The operation type (e.g., "add", "remove", "replace", "move", "copy", "test").
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.JsonPatchOperation.Path">
+            <summary>
+            The target location for the operation as a JSON Pointer (RFC 6901).
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.JsonPatchOperation.Value">
+            <summary>
+            The value to add, replace, or test. Omitted for "remove" operations.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.JsonPatchOperation.From">
+            <summary>
+            The source location for "move" or "copy" operations as a JSON Pointer (RFC 6901).
+            Omitted for other operation types.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchOperation.FromConfigKey(System.String)">
+            <summary>
+            Creates a JSON Pointer path from a configuration key.
+            Configuration keys use ':' as a section separator (e.g., "Section:Subsection:Key").
+            This method converts such keys to JSON Pointer format by:
+            1. Splitting the key by ':' into segments
+            2. Escaping each segment for JSON Pointer (RFC 6901) by replacing '~' with '~0' and '/' with '~1'
+            3. Joining segments with '/' to form a valid JSON Pointer path
+            </summary>
+            <param name="configKey">The configuration key to convert (e.g., "ConnectionStrings:DefaultConnection").</param>
+            <returns>A JSON Pointer path (e.g., "/ConnectionStrings/DefaultConnection").</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="configKey"/> is null.</exception>
+            <exception cref="T:System.ArgumentException">Thrown if <paramref name="configKey"/> is empty or whitespace.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchOperation.EscapeJsonPointerSegment(System.String)">
+            <summary>
+            Escapes a single JSON Pointer segment according to RFC 6901.
+            In a JSON Pointer, the characters '~' and '/' must be escaped:
+            - '~' is encoded as '~0'
+            - '/' is encoded as '~1'
+            </summary>
+            <param name="segment">The segment to escape.</param>
+            <returns>The escaped segment.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="segment"/> is null.</exception>
+        </member>
+        <member name="T:AppsettingsDiff.JsonPatchOperationTests">
+            <summary>
+            Test scenarios for JsonPatchOperation to verify RFC 6902 compliance and round-trip serialization.
+            Tests serialization of different operation types and ensures they map to correct JSON shapes.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchOperationTests.AddOperation_SerializesCorrectly">
+            <summary>
+            Tests that an 'add' operation serializes to RFC 6902-compliant JSON with 'op', 'path', and 'value' fields.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchOperationTests.RemoveOperation_SerializesCorrectly">
+            <summary>
+            Tests that a 'remove' operation serializes to RFC 6902-compliant JSON with only 'op' and 'path' fields.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchOperationTests.ReplaceOperation_SerializesCorrectly">
+            <summary>
+            Tests that a 'replace' operation serializes to RFC 6902-compliant JSON with 'op', 'path', and 'value' fields.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchOperationTests.MoveOperation_SerializesCorrectly">
+            <summary>
+            Tests that a 'move' operation serializes to RFC 6902-compliant JSON with 'op', 'path', and 'from' fields.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchOperationTests.CopyOperation_SerializesCorrectly">
+            <summary>
+            Tests that a 'copy' operation serializes to RFC 6902-compliant JSON with 'op', 'path', and 'from' fields.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchOperationTests.TestOperation_SerializesCorrectly">
+            <summary>
+            Tests that a 'test' operation serializes to RFC 6902-compliant JSON with 'op', 'path', and 'value' fields.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchOperationTests.FromConfigKey_ConvertsCorrectly">
+            <summary>
+            Tests that FromConfigKey correctly converts configuration keys to JSON Pointer format.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchOperationTests.FromConfigKey_EscapesSpecialCharacters">
+            <summary>
+            Tests that FromConfigKey escapes special JSON Pointer characters '~' and '/'.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchOperationTests.FromConfigKey_NullConfigKey_ThrowsArgumentNullException">
+            <summary>
+            Tests that FromConfigKey throws ArgumentNullException when configKey is null.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchOperationTests.FromConfigKey_EmptyOrWhitespaceConfigKey_ThrowsArgumentException">
+            <summary>
+            Tests that FromConfigKey throws ArgumentException when configKey is empty or whitespace.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchOperationTests.JsonPatchOperation_RoundTrip_PreservesAllFields">
+            <summary>
+            Tests round-trip serialization of JsonPatchOperation preserves all fields.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.JsonPatchOperationTests.JsonPatchOperation_NullValue_SerializesWithoutValueField">
+            <summary>
+            Tests that JsonPatchOperation with null Value serializes correctly without 'value' field.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.MarkdownDiffReportWriter">
+            <summary>
+            Writes diff results as GitHub-flavored markdown reports.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MarkdownDiffReportWriter.#ctor(AppsettingsDiff.SensitiveKeyDetector,System.Boolean,System.Boolean)">
+            <summary>
+            Initializes a new instance of the <see cref="T:AppsettingsDiff.MarkdownDiffReportWriter"/> class.
+            </summary>
+            <param name="detector">Detector used to identify sensitive keys.</param>
+            <param name="showSecrets">When <see langword="true"/>, sensitive values are written verbatim instead of redacted.</param>
+            <param name="maskSensitive">When <see langword="true"/>, sensitive values are masked with *** instead of showing [REDACTED].</param>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="detector"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.MarkdownDiffReportWriter.WriteConsole(AppsettingsDiff.DiffResult,System.Boolean)">
+            <summary>
+            Writes a colour‑coded table to the console.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MarkdownDiffReportWriter.WriteMarkdown(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Writes a GitHub‑flavored markdown report to the supplied writer.
+            Includes a summary line and a table with columns: Key | Change | Old | New.
+            Sensitive values are redacted unless <c>showSecrets</c> is true.
+            </summary>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="result"/> or <paramref name="writer"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.MarkdownDiffReportWriter.WriteHtml(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Writes a self-contained HTML report to the supplied writer.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MarkdownDiffReportWriter.WriteJsonPatch(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Streams a JSON Patch (RFC 6902) representation of the diff directly to the supplied writer.
+            </summary>
+            <exception cref="T:System.NotSupportedException">Always thrown; use <see cref="T:AppsettingsDiff.JsonPatchDiffReportWriter"/> instead.</exception>
+        </member>
+        <member name="T:AppsettingsDiff.MergeResultExtensions">
+            <summary>
+            Provides extension methods for <see cref="T:AppsettingsDiff.MergeResult"/> to facilitate common merge operations and conflict resolution.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultExtensions.GetValueOrDefault(AppsettingsDiff.MergeResult,System.String,System.String)">
+            <summary>
+            Gets the merged value for the specified key, or a default value if the key does not exist.
+            </summary>
+            <param name="result">The merge result to query.</param>
+            <param name="key">The configuration key to look up.</param>
+            <param name="defaultValue">The default value to return if the key is not found.</param>
+            <returns>The merged value for the key, or the default value if the key does not exist.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="result"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultExtensions.GetValueOrDefaultAsInt(AppsettingsDiff.MergeResult,System.String,System.Int32)">
+            <summary>
+            Gets the merged value for the specified key as an integer, or a default value if the key does not exist or cannot be parsed.
+            </summary>
+            <param name="result">The merge result to query.</param>
+            <param name="key">The configuration key to look up.</param>
+            <param name="defaultValue">The default value to return if the key is not found or parsing fails.</param>
+            <returns>The merged value for the key as an integer, or the default value if parsing fails.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="result"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultExtensions.GetValueOrDefaultAsBool(AppsettingsDiff.MergeResult,System.String,System.Boolean)">
+            <summary>
+            Gets the merged value for the specified key as a boolean, or a default value if the key does not exist or cannot be parsed.
+            </summary>
+            <param name="result">The merge result to query.</param>
+            <param name="key">The configuration key to look up.</param>
+            <param name="defaultValue">The default value to return if the key is not found or parsing fails.</param>
+            <returns>The merged value for the key as a boolean, or the default value if parsing fails.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="result"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultExtensions.GetValueOrDefaultAsDecimal(AppsettingsDiff.MergeResult,System.String,System.Decimal)">
+            <summary>
+            Gets the merged value for the specified key as a decimal, or a default value if the key does not exist or cannot be parsed.
+            </summary>
+            <param name="result">The merge result to query.</param>
+            <param name="key">The configuration key to look up.</param>
+            <param name="defaultValue">The default value to return if the key is not found or parsing fails.</param>
+            <returns>The merged value for the key as a decimal, or the default value if parsing fails.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="result"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultExtensions.ContainsKey(AppsettingsDiff.MergeResult,System.String)">
+            <summary>
+            Determines whether the merged configuration contains the specified key.
+            </summary>
+            <param name="result">The merge result to query.</param>
+            <param name="key">The configuration key to check.</param>
+            <returns><see langword="true"/> if the key exists in the merged configuration; otherwise, <see langword="false"/>.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="result"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultExtensions.Count(AppsettingsDiff.MergeResult)">
+            <summary>
+            Gets the number of keys in the merged configuration.
+            </summary>
+            <param name="result">The merge result to query.</param>
+            <returns>The number of keys in the merged configuration.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="result"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultExtensions.GetKeys(AppsettingsDiff.MergeResult)">
+            <summary>
+            Gets an enumerable of all keys in the merged configuration.
+            </summary>
+            <param name="result">The merge result to query.</param>
+            <returns>An enumerable of all keys in the merged configuration.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="result"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultExtensions.TryGetValue(AppsettingsDiff.MergeResult,System.String,System.String@)">
+            <summary>
+            Attempts to get the merged value for the specified key.
+            </summary>
+            <param name="result">The merge result to query.</param>
+            <param name="key">The configuration key to look up.</param>
+            <param name="value">When this method returns, contains the value associated with the specified key, if the key is found; otherwise, the default value for the type of the value parameter.</param>
+            <returns><see langword="true"/> if the key was found; otherwise, <see langword="false"/>.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="result"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultExtensions.GetConflicts(AppsettingsDiff.MergeResult)">
+            <summary>
+            Gets a read-only list of all conflicts encountered during the merge.
+            </summary>
+            <param name="result">The merge result to query.</param>
+            <returns>A read-only list of all conflicts encountered during the merge.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="result"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultExtensions.HasConflicts(AppsettingsDiff.MergeResult)">
+            <summary>
+            Determines whether the merge result has any conflicts.
+            </summary>
+            <param name="result">The merge result to check.</param>
+            <returns><see langword="true"/> if the merge result has one or more conflicts; otherwise, <see langword="false"/>.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="result"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultExtensions.GetConflict(AppsettingsDiff.MergeResult,System.String)">
+            <summary>
+            Gets the first conflict with the specified key, if any.
+            </summary>
+            <param name="result">The merge result to query.</param>
+            <param name="key">The configuration key to find a conflict for.</param>
+            <returns>The first conflict with the specified key, or <see langword="null"/> if no conflict exists for that key.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="result"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultExtensions.GetConflictedKeys(AppsettingsDiff.MergeResult)">
+            <summary>
+            Gets a read-only list of all keys that have conflicts.
+            </summary>
+            <param name="result">The merge result to query.</param>
+            <returns>A read-only list of all keys that have conflicts.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="result"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="T:AppsettingsDiff.MergeResultJsonExtensions">
+            <summary>
+            Provides JSON serialization helpers for <see cref="T:AppsettingsDiff.MergeResult"/>
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensions.ToJson(AppsettingsDiff.MergeResult,System.Boolean)">
+            <summary>
+            Serializes the <see cref="T:AppsettingsDiff.MergeResult"/> instance to a JSON string.
+            </summary>
+            <param name="value">The <see cref="T:AppsettingsDiff.MergeResult"/> to serialize.</param>
+            <param name="indented">If <c>true</c>, the output JSON will be formatted with indentation.</param>
+            <returns>A JSON representation of the <paramref name="value"/>.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="value"/> is <see langword="null"/></exception>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensions.FromJson(System.String)">
+            <summary>
+            Deserializes a JSON string into a <see cref="T:AppsettingsDiff.MergeResult"/> instance.
+            </summary>
+            <param name="json">The JSON string representing a <see cref="T:AppsettingsDiff.MergeResult"/>.</param>
+            <returns>The deserialized <see cref="T:AppsettingsDiff.MergeResult"/>, or <c>null</c> if the JSON document is the literal <c>null</c>.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="json"/> is <see langword="null"/></exception>
+            <exception cref="T:System.Text.Json.JsonException">The JSON is invalid or cannot be deserialized into a <see cref="T:AppsettingsDiff.MergeResult"/></exception>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensions.TryFromJson(System.String,AppsettingsDiff.MergeResult@)">
+            <summary>
+            Attempts to deserialize a JSON string into a <see cref="T:AppsettingsDiff.MergeResult"/> instance.
+            </summary>
+            <param name="json">The JSON string representing a <see cref="T:AppsettingsDiff.MergeResult"/>.</param>
+            <param name="value">
+            When this method returns, contains the deserialized <see cref="T:AppsettingsDiff.MergeResult"/> if the operation succeeded;
+            otherwise, <c>null</c>.
+            </param>
+            <returns><c>true</c> if deserialization succeeded; otherwise, <c>false</c>.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="json"/> is <see langword="null"/></exception>
+        </member>
+        <member name="T:AppsettingsDiff.MergeResultJsonExtensionsTests">
+            <summary>
+            Test scenarios for MergeResultJsonExtensions to verify JSON serialization and deserialization
+            preserves all fields including collections, and handles edge cases like null values correctly.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensionsTests.ToJson_SerializesMergeResultCorrectly">
+            <summary>
+            Tests that ToJson serializes MergeResult to valid JSON with correct structure.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensionsTests.ToJson_WithIndentedTrue_ProducesFormattedJson">
+            <summary>
+            Tests that ToJson with indented=true produces formatted JSON.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensionsTests.ToJson_WithIndentedFalse_ProducesCompactJson">
+            <summary>
+            Tests that ToJson with indented=false produces compact JSON.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensionsTests.FromJson_DeserializesValidJsonToMergeResult">
+            <summary>
+            Tests that FromJson deserializes valid JSON back to MergeResult.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensionsTests.FromJson_HandlesEmptyMergedDictionary">
+            <summary>
+            Tests that FromJson handles empty merged dictionary correctly.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensionsTests.FromJson_HandlesEmptyConflictsList">
+            <summary>
+            Tests that FromJson handles empty conflicts list correctly.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensionsTests.FromJson_PreservesNullValuesInConflicts">
+            <summary>
+            Tests that FromJson deserializes null values correctly (they should be preserved).
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensionsTests.TryFromJson_ReturnsTrueForValidJson">
+            <summary>
+            Tests that TryFromJson returns true for valid JSON.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensionsTests.TryFromJson_ReturnsFalseForInvalidJson">
+            <summary>
+            Tests that TryFromJson returns false for invalid JSON.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensionsTests.TryFromJson_ThrowsArgumentExceptionForNullJson">
+            <summary>
+            Tests that TryFromJson throws ArgumentException for null JSON.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensionsTests.TryFromJson_ThrowsArgumentExceptionForEmptyJson">
+            <summary>
+            Tests that TryFromJson throws ArgumentException for empty JSON.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensionsTests.FromJson_ThrowsArgumentExceptionForNullJson">
+            <summary>
+            Tests that FromJson throws ArgumentException for null JSON.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensionsTests.FromJson_ThrowsArgumentExceptionForEmptyJson">
+            <summary>
+            Tests that FromJson throws ArgumentException for empty JSON.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensionsTests.FromJson_ThrowsArgumentExceptionForWhitespaceJson">
+            <summary>
+            Tests that FromJson throws ArgumentException for whitespace-only JSON.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensionsTests.MergeResultJsonExtensions_RoundTrip_PreservesAllFields">
+            <summary>
+            Tests that round-trip serialization (ToJson -> FromJson) preserves all fields.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensionsTests.MergeResultJsonExtensions_RoundTrip_PreservesCollections">
+            <summary>
+            Tests that MergeResultJsonExtensions handles collections correctly in round-trip.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultJsonExtensionsTests.MergeResultJsonExtensions_DoesNotDropKeysWithNullValues">
+            <summary>
+            Tests that MergeResultJsonExtensions does not silently drop keys with null values.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.MergeResultTests">
+            <summary>
+            Test scenarios for MergeResult and MergeResultExtensions to verify merge behavior,
+            conflict resolution precedence, and JSON round-trip serialization.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResult_ConflictingKeys_ManualStrategy_PrefersOurSide">
+            <summary>
+            Tests that MergeResult with conflicting keys from two sources respects documented precedence.
+            When both sides changed a key differently and strategy is Manual, our side should win (backward compatibility).
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResult_ConflictingKeys_PreferOursStrategy_AutoResolvesToOurSide">
+            <summary>
+            Tests that MergeResult with conflicting keys and PreferOurs strategy automatically resolves to our side.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResult_ConflictingKeys_PreferTheirsStrategy_AutoResolvesToTheirSide">
+            <summary>
+            Tests that MergeResult with conflicting keys and PreferTheirs strategy automatically resolves to their side.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResult_NoConflicts_ReturnsEmptyConflictsList">
+            <summary>
+            Tests that MergeResult with no conflicts returns empty conflicts list.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResult_EmptyDictionaries_ReturnsEmptyResultWithoutThrowing">
+            <summary>
+            Tests that MergeResult with zero inputs (empty dictionaries) returns empty result without throwing.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResult_OnlyTheirSideChanged_TakesTheirSide">
+            <summary>
+            Tests that MergeResult with only base changes (no conflicts) takes their side.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResult_OnlyOurSideChanged_TakesOurSide">
+            <summary>
+            Tests that MergeResult with only our side changed (no conflicts) takes our side.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResult_BothSidesSameChange_TakesThatSide">
+            <summary>
+            Tests that MergeResult with both sides making same change (no conflicts) takes that side.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResult_DeletionOnOneSide_RemovesKey">
+            <summary>
+            Tests that MergeResult with deletion on one side (no conflict) removes the key.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResultExtensions_GetValueOrDefault_ReturnsDefaultWhenKeyNotFound">
+            <summary>
+            Tests that MergeResultExtensions.GetValueOrDefault returns default when key not found.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResultExtensions_GetValueOrDefault_ReturnsMergedValueWhenKeyExists">
+            <summary>
+            Tests that MergeResultExtensions.GetValueOrDefault returns merged value when key exists.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResultExtensions_GetValueOrDefault_ReturnsEmptyStringWhenKeyNotFoundAndNoDefault">
+            <summary>
+            Tests that MergeResultExtensions.GetValueOrDefault returns empty string when key not found and no default provided.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResultExtensions_ContainsKey_ReturnsTrueForExistingKey">
+            <summary>
+            Tests that MergeResultExtensions.ContainsKey returns true for existing key.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResultExtensions_ContainsKey_ReturnsFalseForNonExistentKey">
+            <summary>
+            Tests that MergeResultExtensions.ContainsKey returns false for non-existent key.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResultExtensions_Count_ReturnsCorrectCount">
+            <summary>
+            Tests that MergeResultExtensions.Count returns correct number of merged keys.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResultExtensions_Count_ReturnsZeroForEmptyResult">
+            <summary>
+            Tests that MergeResultExtensions.Count returns 0 for empty merge result.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResultExtensions_GetKeys_ReturnsAllKeys">
+            <summary>
+            Tests that MergeResultExtensions.GetKeys returns all merged keys.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResultExtensions_TryGetValue_ReturnsTrueForExistingKey">
+            <summary>
+            Tests that MergeResultExtensions.TryGetValue returns true for existing key.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResultExtensions_TryGetValue_ReturnsFalseForNonExistentKey">
+            <summary>
+            Tests that MergeResultExtensions.TryGetValue returns false for non-existent key.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResultExtensions_GetConflicts_ReturnsAllConflicts">
+            <summary>
+            Tests that MergeResultExtensions.GetConflicts returns all conflicts.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResultExtensions_HasConflicts_ReturnsTrueWhenConflictsExist">
+            <summary>
+            Tests that MergeResultExtensions.HasConflicts returns true when conflicts exist.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResultExtensions_HasConflicts_ReturnsFalseWhenNoConflicts">
+            <summary>
+            Tests that MergeResultExtensions.HasConflicts returns false when no conflicts exist.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResultExtensions_GetConflict_ReturnsFirstConflictForKey">
+            <summary>
+            Tests that MergeResultExtensions.GetConflict returns the first conflict for a key.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResultExtensions_GetConflict_ReturnsNullWhenNoConflictForKey">
+            <summary>
+            Tests that MergeResultExtensions.GetConflict returns null when no conflict exists for key.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResultExtensions_GetConflictedKeys_ReturnsAllConflictedKeys">
+            <summary>
+            Tests that MergeResultExtensions.GetConflictedKeys returns all keys with conflicts.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResultExtensions_AllMethods_ThrowArgumentNullExceptionForNullResult">
+            <summary>
+            Tests that MergeResultExtensions methods throw ArgumentNullException for null result.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.MergeResultTests.MergeResultExtensions_AllMethods_ThrowArgumentNullExceptionForNullKey">
+            <summary>
+            Tests that MergeResultExtensions methods throw ArgumentNullException for null key.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.PlaceholderDetector">
+            <summary>
+            Detects placeholder values in configuration keys.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.PlaceholderDetector.#ctor(System.Collections.Generic.IEnumerable{System.String})">
+            <summary>
+            Initializes a new instance of the <see cref="T:AppsettingsDiff.PlaceholderDetector"/> class.
+            </summary>
+            <param name="extraPatterns">Optional additional patterns to match as placeholders.</param>
+        </member>
+        <member name="P:AppsettingsDiff.PlaceholderDetector.Patterns">
+            <summary>
+            Gets the full list of patterns this detector matches against,
+            including the built-in defaults and any extra patterns supplied at construction.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.PlaceholderDetector.Scan(System.Collections.Generic.Dictionary{System.String,System.String})">
+            <summary>
+            Scans configuration dictionary for placeholder values,
+            matching both the built-in patterns and any extra patterns supplied at construction.
+            </summary>
+            <param name="config">Configuration dictionary to scan.</param>
+            <returns>List of placeholder findings.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="config"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.PlaceholderDetector.LooksLikePlaceholder(System.String)">
+            <summary>
+            Determines if a value looks like a placeholder.
+            </summary>
+            <param name="value">Value to check.</param>
+            <returns>True if the value looks like a placeholder; otherwise false.</returns>
+        </member>
+        <member name="T:AppsettingsDiff.PlaceholderFinding">
+            <summary>
+            Represents a detected placeholder in configuration.
+            </summary>
+            <param name="Key">Configuration key containing the placeholder.</param>
+            <param name="Value">The placeholder value found.</param>
+            <param name="Reason">Reason why this was identified as a placeholder.</param>
+        </member>
+        <member name="M:AppsettingsDiff.PlaceholderFinding.#ctor(System.String,System.String,System.String)">
+            <summary>
+            Represents a detected placeholder in configuration.
+            </summary>
+            <param name="Key">Configuration key containing the placeholder.</param>
+            <param name="Value">The placeholder value found.</param>
+            <param name="Reason">Reason why this was identified as a placeholder.</param>
+        </member>
+        <member name="P:AppsettingsDiff.PlaceholderFinding.Key">
+            <summary>Configuration key containing the placeholder.</summary>
+        </member>
+        <member name="P:AppsettingsDiff.PlaceholderFinding.Value">
+            <summary>The placeholder value found.</summary>
+        </member>
+        <member name="P:AppsettingsDiff.PlaceholderFinding.Reason">
+            <summary>Reason why this was identified as a placeholder.</summary>
+        </member>
+        <member name="T:AppsettingsDiff.PlaceholderDetectorExtensions">
+            <summary>
+            Provides extension methods for <see cref="T:AppsettingsDiff.PlaceholderDetector"/> to enhance placeholder detection capabilities.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.PlaceholderDetectorExtensions.FilterByPattern(AppsettingsDiff.PlaceholderDetector,System.Collections.Generic.IReadOnlyList{AppsettingsDiff.PlaceholderFinding},System.String)">
+            <summary>
+            Filters findings to only those matching specific placeholder patterns.
+            </summary>
+            <param name="detector">The placeholder detector instance.</param>
+            <param name="findings">Findings to filter.</param>
+            <param name="pattern">Pattern to match against the reason (case-insensitive).</param>
+            <returns>Filtered findings matching the pattern.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown when <paramref name="detector"/> or <paramref name="findings"/> is null.</exception>
+            <exception cref="T:System.ArgumentException">Thrown when <paramref name="pattern"/> is null or empty.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.PlaceholderDetectorExtensions.GroupByReason(AppsettingsDiff.PlaceholderDetector,System.Collections.Generic.IReadOnlyList{AppsettingsDiff.PlaceholderFinding})">
+            <summary>
+            Groups findings by their reason, allowing for analysis of common placeholder types.
+            </summary>
+            <param name="detector">The placeholder detector instance.</param>
+            <param name="findings">Findings to group.</param>
+            <returns>Dictionary mapping reasons to collections of findings.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown when <paramref name="detector"/> or <paramref name="findings"/> is null.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.PlaceholderDetectorExtensions.HasAnyFindings(AppsettingsDiff.PlaceholderDetector,System.Collections.Generic.IReadOnlyList{AppsettingsDiff.PlaceholderFinding})">
+            <summary>
+            Checks if any placeholder findings exist in the provided findings collection.
+            </summary>
+            <param name="detector">The placeholder detector instance.</param>
+            <param name="findings">Findings to check.</param>
+            <returns>True if findings collection contains any items; otherwise false.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown when <paramref name="detector"/> or <paramref name="findings"/> is null.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.PlaceholderDetectorExtensions.GetFindingsCountBySeverity(AppsettingsDiff.PlaceholderDetector,System.Collections.Generic.IReadOnlyList{AppsettingsDiff.PlaceholderFinding})">
+            <summary>
+            Gets the count of findings grouped by their severity level.
+            </summary>
+            <param name="detector">The placeholder detector instance.</param>
+            <param name="findings">Findings to analyze.</param>
+            <returns>Dictionary mapping severity levels to finding counts.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown when <paramref name="detector"/> or <paramref name="findings"/> is null.</exception>
+        </member>
+        <member name="T:AppsettingsDiff.PlaceholderDetectorJsonExtensions">
+            <summary>
+            Provides JSON serialization and deserialization extensions for <see cref="T:AppsettingsDiff.PlaceholderDetector"/>.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.PlaceholderDetectorJsonExtensions.ToJson(AppsettingsDiff.PlaceholderDetector,System.Boolean)">
+            <summary>
+            Serializes a <see cref="T:AppsettingsDiff.PlaceholderDetector"/> instance to a JSON string
+            containing its full pattern list.
+            </summary>
+            <param name="value">The <see cref="T:AppsettingsDiff.PlaceholderDetector"/> instance to serialize.</param>
+            <param name="indented">Whether to format the JSON with indentation for readability.</param>
+            <returns>A JSON string representation of the <see cref="T:AppsettingsDiff.PlaceholderDetector"/>.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="value"/> is <see langword="null"/></exception>
+        </member>
+        <member name="M:AppsettingsDiff.PlaceholderDetectorJsonExtensions.FromJson(System.String)">
+            <summary>
+            Deserializes a JSON string to a <see cref="T:AppsettingsDiff.PlaceholderDetector"/> instance.
+            </summary>
+            <param name="json">The JSON string to deserialize.</param>
+            <returns>A <see cref="T:AppsettingsDiff.PlaceholderDetector"/> instance populated from the JSON data.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="json"/> is <see langword="null"/></exception>
+            <exception cref="T:System.Text.Json.JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.PlaceholderDetectorJsonExtensions.TryFromJson(System.String,AppsettingsDiff.PlaceholderDetector@)">
+            <summary>
+            Attempts to deserialize a JSON string to a <see cref="T:AppsettingsDiff.PlaceholderDetector"/> instance.
+            </summary>
+            <param name="json">The JSON string to deserialize.</param>
+            <param name="value">Receives the deserialized <see cref="T:AppsettingsDiff.PlaceholderDetector"/> instance if successful.</param>
+            <returns>True if deserialization succeeded; otherwise false.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="json"/> is <see langword="null"/></exception>
+        </member>
+        <member name="T:AppsettingsDiff.PlaceholderDetectorJsonExtensions.PlaceholderDetectorState">
+            <summary>
+            Serialization contract for <see cref="T:AppsettingsDiff.PlaceholderDetector"/>.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.FailOn">
+            <summary>
+            Categories for determining whether to fail the process.
+            </summary>
+        </member>
+        <member name="F:AppsettingsDiff.FailOn.None">
+            <summary> Do not fail on any issue. </summary>
+        </member>
+        <member name="F:AppsettingsDiff.FailOn.Missing">
+            <summary> Fail on missing keys. </summary>
+        </member>
+        <member name="F:AppsettingsDiff.FailOn.Any">
+            <summary> Fail on any difference. </summary>
+        </member>
+        <member name="F:AppsettingsDiff.FailOn.SchemaViolation">
+            <summary> Fail on schema violations. </summary>
+        </member>
+        <member name="T:AppsettingsDiff.Program">
+            <summary>
+            Command-line entry point for the appsettings diff tool.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.Program.Main(System.String[])">
+             <summary>
+             Runs the CLI.
+            
+             Exit codes:
+             0 - Success: No differences or violations found
+             1 - Failure: Differences or violations found according to --fail-on
+             2 - Error: Bad arguments, missing files, or other errors
+             </summary>
+             <param name="args">Raw command-line arguments.</param>
+        </member>
+        <member name="M:AppsettingsDiff.Program.LoadConfigFile(System.String)">
+            <summary>
+            Loads a configuration file (JSON, YAML, or .env) into a flat key-value dictionary
+            using the same "Section:Key" convention as ASP.NET Core configuration.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.Program.LoadEnvironmentConfig(System.IO.DirectoryInfo,System.String)">
+            <summary>
+            Builds the effective configuration for an environment: the shared appsettings file
+            (if present) overlaid with the environment-specific appsettings.{env} file.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.RedactionPolicy">
+            <summary>
+            Encapsulates the redaction rules applied uniformly by every <see cref="T:AppsettingsDiff.IDiffReportWriter"/>
+            implementation, so that secret handling cannot drift between output formats.
+            </summary>
+        </member>
+        <member name="F:AppsettingsDiff.RedactionPolicy.RedactedToken">
+            <summary>
+            The token written in place of a sensitive value when <see cref="P:AppsettingsDiff.RedactionPolicy.MaskSensitive"/> is <see langword="false"/>.
+            </summary>
+        </member>
+        <member name="F:AppsettingsDiff.RedactionPolicy.MaskedToken">
+            <summary>
+            The token written in place of a sensitive value when <see cref="P:AppsettingsDiff.RedactionPolicy.MaskSensitive"/> is <see langword="true"/>.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.RedactionPolicy.ShowSecrets">
+            <summary>
+            Gets a value indicating whether sensitive values should be written verbatim instead of redacted.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.RedactionPolicy.MaskSensitive">
+            <summary>
+            Gets a value indicating whether redacted values should be masked with <see cref="F:AppsettingsDiff.RedactionPolicy.MaskedToken"/>
+            instead of <see cref="F:AppsettingsDiff.RedactionPolicy.RedactedToken"/>.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.RedactionPolicy.#ctor(AppsettingsDiff.SensitiveKeyDetector,System.Boolean,System.Boolean)">
+            <summary>
+            Initializes a new instance of the <see cref="T:AppsettingsDiff.RedactionPolicy"/> class.
+            </summary>
+            <param name="detector">Detector used to identify sensitive keys.</param>
+            <param name="showSecrets">When <see langword="true"/>, sensitive values are written verbatim instead of redacted.</param>
+            <param name="maskSensitive">When <see langword="true"/>, sensitive values are masked with <see cref="F:AppsettingsDiff.RedactionPolicy.MaskedToken"/> instead of <see cref="F:AppsettingsDiff.RedactionPolicy.RedactedToken"/>.</param>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="detector"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.RedactionPolicy.IsSensitiveKey(System.String)">
+            <summary>
+            Determines whether the given configuration key is considered sensitive by the underlying detector.
+            </summary>
+            <param name="key">The configuration key to inspect.</param>
+            <returns><see langword="true"/> if the key is sensitive; otherwise <see langword="false"/>.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="key"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.RedactionPolicy.Redact(System.String,System.Boolean)">
+            <summary>
+            Applies the redaction policy to a value, returning the redaction token when the value
+            is sensitive and <see cref="P:AppsettingsDiff.RedactionPolicy.ShowSecrets"/> is <see langword="false"/>, or the original
+            value (empty string instead of <see langword="null"/>) otherwise.
+            </summary>
+            <param name="value">The raw value to redact.</param>
+            <param name="isSensitive">Whether the value has been flagged as sensitive.</param>
+            <returns>The redacted or original value.</returns>
+        </member>
+        <member name="T:AppsettingsDiff.ConfigSchema">
+            <summary>
+            Represents a configuration schema.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.ConfigSchema.RequiredKeys">
+            <summary>
+            Gets the list of required keys in the schema.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.ConfigSchema.TypeHints">
+            <summary>
+            Gets the dictionary of type hints for keys in the schema.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigSchema.LoadFromJson(System.String)">
+            <summary>
+            Loads a configuration schema from a JSON file.
+            </summary>
+            <param name="path">The path to the JSON file.</param>
+            <returns>The loaded configuration schema.</returns>
+            <exception cref="T:System.ArgumentException">Thrown when <paramref name="path"/> is null or whitespace.</exception>
+            <exception cref="T:System.InvalidOperationException">Thrown when the file deserializes to a null schema.</exception>
+            <exception cref="T:System.Text.Json.JsonException">Thrown when the file is not valid JSON.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigSchema.InferFrom(System.Text.Json.JsonDocument,AppsettingsDiff.SensitiveKeyDetector)">
+            <summary>
+            Infers a configuration schema from a JSON document.
+            </summary>
+            <param name="document">The JSON document to infer from.</param>
+            <param name="detector">Optional sensitive key detector for marking sensitive keys.</param>
+            <returns>A new configuration schema inferred from the document.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown when <paramref name="document"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigSchema.InferFrom(System.Collections.Generic.Dictionary{System.String,System.String},AppsettingsDiff.SensitiveKeyDetector)">
+            <summary>
+            Infers a configuration schema from a flattened key-value dictionary.
+            </summary>
+            <param name="config">The configuration key-value pairs.</param>
+            <param name="detector">Optional sensitive key detector for marking sensitive keys.</param>
+            <returns>A new configuration schema inferred from the configuration.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown when <paramref name="config"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigSchema.InferTypeFromValue(System.String)">
+            <summary>
+            Infers a type from a configuration value string.
+            </summary>
+            <param name="value">The configuration value.</param>
+            <returns>The inferred type hint ("string", "number", "bool", "array", "object"), or null if indeterminate.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigSchema.InferFromNode(System.Text.Json.JsonElement,System.String,AppsettingsDiff.ConfigSchema,System.Collections.Generic.HashSet{System.String},AppsettingsDiff.SensitiveKeyDetector)">
+            <summary>
+            Recursively infers schema from a JSON node.
+            </summary>
+            <param name="element">The JSON element to process.</param>
+            <param name="path">The current path in the JSON structure.</param>
+            <param name="schema">The schema being built.</param>
+            <param name="visitedKeys">Set of already visited keys to avoid duplicates.</param>
+            <param name="detector">Sensitive key detector for marking sensitive keys.</param>
+        </member>
+        <member name="M:AppsettingsDiff.ConfigSchema.SaveToJson(System.String)">
+            <summary>
+            Saves the configuration schema to a JSON file.
+            </summary>
+            <param name="path">The path to save the schema to.</param>
+            <exception cref="T:System.ArgumentException">Thrown when <paramref name="path"/> is null or whitespace.</exception>
+            <exception cref="T:System.IO.IOException">Thrown when the file cannot be written.</exception>
+        </member>
+        <member name="T:AppsettingsDiff.SchemaValidator">
+            <summary>
+            Validates a configuration against a schema.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.SchemaValidator.ReportUnknownKeys">
+            <summary>
+            Gets or sets a value indicating whether to report unknown keys (keys present in config but not in schema).
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.SchemaValidator.Validate(System.Collections.Generic.Dictionary{System.String,System.String},AppsettingsDiff.ConfigSchema)">
+            <summary>
+            Validates a configuration against a schema and returns a list of schema violations.
+            </summary>
+            <param name="config">The configuration to validate.</param>
+            <param name="schema">The schema to validate against.</param>
+            <returns>A list of schema violations.</returns>
+            <exception cref="T:System.ArgumentNullException">
+            Thrown when <paramref name="config"/> or <paramref name="schema"/> is <see langword="null"/>.
+            </exception>
+        </member>
+        <member name="M:AppsettingsDiff.SchemaValidator.ContainsConnectionStringCredentials(System.String)">
+            <summary>
+            Determines whether the given configuration value contains a connection string with credentials.
+            Checks for patterns like 'Password=' or 'pwd=' in the value.
+            </summary>
+            <param name="value">The configuration value to check.</param>
+            <returns><see langword="true"/> if the value contains a connection string with credentials; otherwise <see langword="false"/>.</returns>
+        </member>
+        <member name="T:AppsettingsDiff.SchemaViolation">
+            <summary>
+            Represents a schema violation.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.SchemaViolation.KeyPath">
+            <summary>
+            Gets the key that is in violation.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.SchemaViolation.Key">
+            <summary>
+            Gets the string representation of the key path.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.SchemaViolation.Message">
+            <summary>
+            Gets the message describing the violation.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.SchemaViolation.IsMissing">
+            <summary>
+            Gets a value indicating whether the key is missing.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.SchemaViolation.IsUnknown">
+            <summary>
+            Gets a value indicating whether the key is unknown (present in config but not in schema).
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.SchemaViolation.IsCasingConflict">
+            <summary>
+            Gets a value indicating whether this is a casing conflict (keys differing only by casing).
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.SchemaViolation.IsSensitive">
+            <summary>
+            Gets a value indicating whether the violation is related to sensitive data (e.g., connection strings with passwords).
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.SchemaValidatorTests">
+            <summary>
+            Test scenarios for SchemaValidator to improve branch and edge-case coverage.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.SensitiveKeyDetectorExtensions">
+            <summary>
+            Extension methods for <see cref="T:AppsettingsDiff.SensitiveKeyDetector"/> that provide additional utility functionality
+            for detecting sensitive configuration keys and patterns.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.SensitiveKeyDetectorExtensions.IsSensitiveKey(AppsettingsDiff.SensitiveKeyDetector,System.String)">
+            <summary>
+            Determines whether the specified key is a sensitive key based on common patterns.
+            </summary>
+            <param name="detector">The detector instance</param>
+            <param name="key">The configuration key to check</param>
+            <returns>True if the key is sensitive; otherwise, false</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="detector"/> is <see langword="null"/></exception>
+        </member>
+        <member name="M:AppsettingsDiff.SensitiveKeyDetectorExtensions.IsPotentiallySensitive(AppsettingsDiff.SensitiveKeyDetector,System.String)">
+            <summary>
+            Determines whether the specified key matches any of the sensitive patterns.
+            </summary>
+            <param name="detector">The detector instance</param>
+            <param name="key">The configuration key to check</param>
+            <returns>True if the key matches sensitive patterns; otherwise, false</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="detector"/> is <see langword="null"/></exception>
+        </member>
+        <member name="M:AppsettingsDiff.SensitiveKeyDetectorExtensions.IsDatabaseCredential(AppsettingsDiff.SensitiveKeyDetector,System.String)">
+            <summary>
+            Checks if a key is sensitive and also contains common database-related patterns.
+            Useful for identifying database connection strings and credentials.
+            </summary>
+            <param name="detector">The detector instance</param>
+            <param name="key">The configuration key to check</param>
+            <returns>True if the key is both sensitive and database-related; otherwise, false</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="detector"/> is <see langword="null"/></exception>
+        </member>
+        <member name="M:AppsettingsDiff.SensitiveKeyDetectorExtensions.IsApiCredential(AppsettingsDiff.SensitiveKeyDetector,System.String)">
+            <summary>
+            Checks if a key is sensitive and also contains API-related patterns.
+            Useful for identifying API keys and tokens.
+            </summary>
+            <param name="detector">The detector instance</param>
+            <param name="key">The configuration key to check</param>
+            <returns>True if the key is both sensitive and API-related; otherwise, false</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="detector"/> is <see langword="null"/></exception>
+        </member>
+        <member name="M:AppsettingsDiff.SensitiveKeyDetectorExtensions.GetSensitivityLevel(AppsettingsDiff.SensitiveKeyDetector,System.String)">
+            <summary>
+            Gets a severity level for the sensitivity of a key based on pattern matching.
+            Returns an integer where higher values indicate higher sensitivity.
+            </summary>
+            <param name="detector">The detector instance</param>
+            <param name="key">The configuration key to check</param>
+            <returns>An integer severity level (0-5)</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="detector"/> is <see langword="null"/></exception>
+            <exception cref="T:System.ArgumentException"><paramref name="key"/> is <see langword="null"/> or empty</exception>
+        </member>
+        <member name="M:AppsettingsDiff.SensitiveKeyDetectorExtensions.RequiresExtraCaution(AppsettingsDiff.SensitiveKeyDetector,System.String)">
+            <summary>
+            Determines if a key should be treated with extra caution based on its sensitivity.
+            Returns <see langword="true"/> for keys that contain "password", "secret", or "connectionstring".
+            </summary>
+            <param name="detector">The detector instance</param>
+            <param name="key">The configuration key to check</param>
+            <returns><see langword="true"/> if the key requires extra caution; otherwise <see langword="false"/></returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="detector"/> is <see langword="null"/></exception>
+        </member>
+        <member name="T:AppsettingsDiff.SensitiveKeyDetectorJsonExtensions">
+            <summary>
+            Provides JSON serialization and deserialization extensions for <see cref="T:AppsettingsDiff.SensitiveKeyDetector"/>
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.SensitiveKeyDetectorJsonExtensions.ToJson(AppsettingsDiff.SensitiveKeyDetector,System.Boolean)">
+            <summary>
+            Serializes a <see cref="T:AppsettingsDiff.SensitiveKeyDetector"/> instance to a JSON string.
+            </summary>
+            <param name="value">The <see cref="T:AppsettingsDiff.SensitiveKeyDetector"/> instance to serialize.</param>
+            <param name="indented">Whether to format the JSON with indentation for readability.</param>
+            <returns>A JSON string representation of the <see cref="T:AppsettingsDiff.SensitiveKeyDetector"/>.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="value"/> is <see langword="null"/></exception>
+        </member>
+        <member name="M:AppsettingsDiff.SensitiveKeyDetectorJsonExtensions.FromJson(System.String)">
+            <summary>
+            Deserializes a JSON string to a <see cref="T:AppsettingsDiff.SensitiveKeyDetector"/> instance.
+            </summary>
+            <param name="json">The JSON string to deserialize.</param>
+            <returns>A <see cref="T:AppsettingsDiff.SensitiveKeyDetector"/> instance populated from the JSON data, or null if the JSON is empty or whitespace.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="json"/> is <see langword="null"/></exception>
+            <exception cref="T:System.Text.Json.JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.SensitiveKeyDetectorJsonExtensions.TryFromJson(System.String,AppsettingsDiff.SensitiveKeyDetector@)">
+            <summary>
+            Attempts to deserialize a JSON string to a <see cref="T:AppsettingsDiff.SensitiveKeyDetector"/> instance.
+            </summary>
+            <param name="json">The JSON string to deserialize.</param>
+            <param name="value">Receives the deserialized <see cref="T:AppsettingsDiff.SensitiveKeyDetector"/> instance if successful; otherwise, null.</param>
+            <returns>True if deserialization succeeded; otherwise, false.</returns>
+            <exception cref="T:System.ArgumentNullException"><paramref name="json"/> is <see langword="null"/></exception>
+        </member>
+        <member name="T:AppsettingsDiff.SummaryJsonDiffReportWriter">
+            <summary>
+            Writes diff results as compact JSON summary showing only counts and keys of changes.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.SummaryJsonDiffReportWriter.#ctor(AppsettingsDiff.SensitiveKeyDetector,System.Boolean,System.Boolean)">
+            <summary>
+            Initializes a new instance of the <see cref="T:AppsettingsDiff.SummaryJsonDiffReportWriter"/> class.
+            </summary>
+            <param name="detector">Detector used to identify sensitive keys.</param>
+            <param name="showSecrets">When <see langword="true"/>, sensitive values are written verbatim instead of redacted.</param>
+            <param name="maskSensitive">When <see langword="true"/>, sensitive values are masked with *** instead of showing [REDACTED].</param>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="detector"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.SummaryJsonDiffReportWriter.WriteConsole(AppsettingsDiff.DiffResult,System.Boolean)">
+            <summary>
+            Writes a colour‑coded table to the console.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.SummaryJsonDiffReportWriter.WriteMarkdown(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Writes a GitHub‑flavored markdown report to the supplied writer.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.SummaryJsonDiffReportWriter.WriteHtml(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Writes a self-contained HTML report to the supplied writer.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.SummaryJsonDiffReportWriter.WriteJsonPatch(AppsettingsDiff.DiffResult,System.IO.TextWriter)">
+            <summary>
+            Streams a JSON Patch (RFC 6902) representation of the diff directly to the supplied writer.
+            </summary>
+            <exception cref="T:System.NotSupportedException">Always thrown; use <see cref="T:AppsettingsDiff.JsonPatchDiffReportWriter"/> instead.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.SummaryJsonDiffReportWriter.WriteJson(AppsettingsDiff.DiffResult,System.IO.TextWriter,System.Boolean)">
+            <summary>
+            Streams a compact JSON summary directly to the supplied writer.
+            Outputs a summary object with counts and lists of changed keys.
+            </summary>
+            <param name="result">The diff result to serialize.</param>
+            <param name="writer">The destination writer.</param>
+            <param name="indented">Whether to format the JSON with indentation.</param>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="result"/> or <paramref name="writer"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="T:AppsettingsDiff.MergeResult">
+            <summary>
+            Result of a three-way merge operation.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.MergeResult.Merged">
+            <summary>
+            Gets the merged configuration dictionary.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.MergeResult.Conflicts">
+            <summary>
+            Gets the list of merge conflicts encountered during the merge.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.MergeResult.HasConflicts">
+            <summary>
+            Gets a value indicating whether the merge resulted in any conflicts.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.MergeConflict">
+            <summary>
+            Represents a merge conflict encountered during a three-way merge.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.MergeConflict.Key">
+            <summary>
+            Gets the configuration key that has a conflict.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.MergeConflict.BaseValue">
+            <summary>
+            Gets the value from the base configuration, if present.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.MergeConflict.OurValue">
+            <summary>
+            Gets the value from the "ours" (local) configuration, if present.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.MergeConflict.TheirValue">
+            <summary>
+            Gets the value from the "theirs" (remote) configuration, if present.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.MergeConflict.AutoResolved">
+            <summary>
+            Gets a value indicating whether this conflict was automatically resolved.
+            </summary>
+        </member>
+        <member name="P:AppsettingsDiff.MergeConflict.Reason">
+            <summary>
+            Gets a human-readable explanation of why this conflict was recorded, if any.
+            This is set for conflicts that arise from special handling (such as whole-array
+            merges) rather than a plain scalar value mismatch.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.ConflictResolutionStrategy">
+            <summary>
+            Strategy for automatically resolving merge conflicts.
+            </summary>
+        </member>
+        <member name="F:AppsettingsDiff.ConflictResolutionStrategy.Manual">
+            <summary>
+            Conflicts are not automatically resolved; they are recorded in the result.
+            </summary>
+        </member>
+        <member name="F:AppsettingsDiff.ConflictResolutionStrategy.PreferOurs">
+            <summary>
+            Prefer our (local) changes when resolving conflicts.
+            </summary>
+        </member>
+        <member name="F:AppsettingsDiff.ConflictResolutionStrategy.PreferTheirs">
+            <summary>
+            Prefer their (remote) changes when resolving conflicts.
+            </summary>
+        </member>
+        <member name="T:AppsettingsDiff.ThreeWayMerger">
+            <summary>
+            Performs a three-way merge of configuration dictionaries (base, ours, theirs).
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.ThreeWayMerger.Merge(System.Collections.Generic.Dictionary{System.String,System.String},System.Collections.Generic.Dictionary{System.String,System.String},System.Collections.Generic.Dictionary{System.String,System.String})">
+            <summary>
+            Merges three configuration dictionaries using three-way merge algorithm.
+            </summary>
+            <param name="baseConfig">The base configuration to merge from.</param>
+            <param name="ours">Our local configuration with changes.</param>
+            <param name="theirs">Their remote configuration with changes.</param>
+            <returns>A <see cref="T:AppsettingsDiff.MergeResult"/> containing the merged configuration and any conflicts.</returns>
+            <exception cref="T:System.ArgumentNullException">
+            Thrown when <paramref name="baseConfig"/>, <paramref name="ours"/> or <paramref name="theirs"/> is <see langword="null"/>.
+            </exception>
+        </member>
+        <member name="M:AppsettingsDiff.ThreeWayMerger.Merge(System.Collections.Generic.Dictionary{System.String,System.String},System.Collections.Generic.Dictionary{System.String,System.String},System.Collections.Generic.Dictionary{System.String,System.String},AppsettingsDiff.ConflictResolutionStrategy)">
+            <summary>
+            Merges three configuration dictionaries using three-way merge algorithm with automatic conflict resolution.
+            </summary>
+            <param name="baseConfig">The base configuration to merge from.</param>
+            <param name="ours">Our local configuration with changes.</param>
+            <param name="theirs">Their remote configuration with changes.</param>
+            <param name="strategy">The conflict resolution strategy to use.</param>
+            <returns>A <see cref="T:AppsettingsDiff.MergeResult"/> containing the merged configuration and any conflicts.</returns>
+            <exception cref="T:System.ArgumentNullException">
+            Thrown when <paramref name="baseConfig"/>, <paramref name="ours"/>, <paramref name="theirs"/> or <paramref name="strategy"/> is <see langword="null"/>.
+            </exception>
+        </member>
+        <member name="M:AppsettingsDiff.ThreeWayMerger.DetectArrayRoot(System.String)">
+            <summary>
+            Determines whether a flattened configuration key is part of an array element
+            (i.e. it contains a purely numeric colon-separated segment representing an
+            array index) and, if so, returns the key path preceding that index - the
+            "array root". Returns <see langword="null"/> when the key does not belong to
+            an array.
+            </summary>
+            <param name="key">The flattened configuration key to inspect.</param>
+            <returns>
+            The array root path (which may be an empty string for a top-level array), or
+            <see langword="null"/> if <paramref name="key"/> contains no numeric index segment.
+            </returns>
+        </member>
+        <member name="M:AppsettingsDiff.ThreeWayMerger.MergeArrayGroup(System.String,System.Collections.Generic.List{System.String},System.Collections.Generic.Dictionary{System.String,System.String},System.Collections.Generic.Dictionary{System.String,System.String},System.Collections.Generic.Dictionary{System.String,System.String},AppsettingsDiff.ConflictResolutionStrategy,System.Collections.Generic.Dictionary{System.String,System.String},System.Collections.Generic.List{AppsettingsDiff.MergeConflict})">
+            <summary>
+            Merges a single flattened array (all keys sharing an array root) as one atomic
+            unit rather than key-by-key, so that index shifts caused by an insert, delete or
+            reorder on either side cannot be misread as unrelated per-index conflicts or
+            silently produce duplicated/misaligned elements.
+            </summary>
+            <param name="arrayRoot">The array root path shared by all keys in <paramref name="groupKeys"/>.</param>
+            <param name="groupKeys">All keys (from any of the three sides) that belong to this array.</param>
+            <param name="baseConfig">The base configuration.</param>
+            <param name="ours">Our local configuration.</param>
+            <param name="theirs">Their remote configuration.</param>
+            <param name="strategy">The conflict resolution strategy to use when both sides changed the array.</param>
+            <param name="merged">The merged dictionary being built; winning entries are written into it.</param>
+            <param name="conflicts">The conflict list being built; an array-level conflict is appended to it when both sides diverge.</param>
+        </member>
+        <member name="M:AppsettingsDiff.ThreeWayMerger.Slice(System.Collections.Generic.Dictionary{System.String,System.String},System.Collections.Generic.List{System.String})">
+            <summary>
+            Extracts the subset of a configuration dictionary restricted to a given set of keys.
+            </summary>
+            <param name="config">The configuration dictionary to slice.</param>
+            <param name="keys">The keys to extract.</param>
+            <returns>A dictionary containing only the entries from <paramref name="config"/> whose key is in <paramref name="keys"/>.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ThreeWayMerger.SliceEquals(System.Collections.Generic.Dictionary{System.String,System.String},System.Collections.Generic.Dictionary{System.String,System.String})">
+            <summary>
+            Determines whether two array slices contain exactly the same set of key/value pairs.
+            </summary>
+            <param name="left">The first slice to compare.</param>
+            <param name="right">The second slice to compare.</param>
+            <returns><see langword="true"/> if both slices have identical keys and values; otherwise <see langword="false"/>.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.ThreeWayMerger.WriteSlice(System.Collections.Generic.Dictionary{System.String,System.String},System.Collections.Generic.Dictionary{System.String,System.String})">
+            <summary>
+            Writes every entry of an array slice into the merged dictionary.
+            </summary>
+            <param name="merged">The merged dictionary being built.</param>
+            <param name="slice">The winning slice whose entries should be written.</param>
+        </member>
+        <member name="M:AppsettingsDiff.ThreeWayMerger.SerializeSlice(System.Collections.Generic.Dictionary{System.String,System.String})">
+            <summary>
+            Serializes an array slice into a deterministic, human-readable string for display in a <see cref="T:AppsettingsDiff.MergeConflict"/>.
+            </summary>
+            <param name="slice">The slice to serialize.</param>
+            <returns>A semicolon-separated "key=value" representation ordered by key, or <see langword="null"/> if the slice is empty.</returns>
+        </member>
+        <member name="T:AppsettingsDiff.TimingSafeComparer">
+            <summary>
+            Provides timing-safe comparison methods to prevent timing attacks when comparing sensitive values.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.TimingSafeComparer.FixedTimeEquals(System.String,System.String)">
+            <summary>
+            Compares two strings in a timing-safe manner.
+            </summary>
+            <param name="a">The first string to compare.</param>
+            <param name="b">The second string to compare.</param>
+            <returns>
+            <see langword="true"/> if the strings are equal; otherwise, <see langword="false"/>.
+            </returns>
+            <remarks>
+            This method handles null values gracefully and uses constant-time comparison
+            for non-null values to prevent timing attacks.
+            </remarks>
+        </member>
+        <member name="M:AppsettingsDiff.TimingSafeComparer.FixedTimeEquals(System.String,System.String,System.StringComparison)">
+            <summary>
+            Compares two strings in a timing-safe manner with a specific string comparison.
+            </summary>
+            <param name="a">The first string to compare.</param>
+            <param name="b">The second string to compare.</param>
+            <param name="comparison">The string comparison type to use for case-insensitive comparisons.</param>
+            <returns>
+            <see langword="true"/> if the strings are equal; otherwise, <see langword="false"/>.
+            </returns>
+            <remarks>
+            This method handles null values gracefully and uses constant-time comparison
+            for non-null values to prevent timing attacks. The comparison type is only used
+            for case-insensitive comparisons to ensure consistent behavior.
+            </remarks>
+        </member>
+        <member name="M:AppsettingsDiff.TimingSafeComparer.FixedTimeEquals(System.ReadOnlySpan{System.Byte},System.ReadOnlySpan{System.Byte})">
+            <summary>
+            Compares two ReadOnlySpan&lt;byte&gt; values in a timing-safe manner.
+            </summary>
+            <param name="a">The first span to compare.</param>
+            <param name="b">The second span to compare.</param>
+            <returns>
+            <see langword="true"/> if the spans are equal; otherwise, <see langword="false"/>.
+            </returns>
+        </member>
+        <member name="M:AppsettingsDiff.TimingSafeComparer.FixedTimeEquals(System.Byte[],System.Byte[])">
+            <summary>
+            Compares two byte arrays in a timing-safe manner.
+            </summary>
+            <param name="a">The first byte array to compare.</param>
+            <param name="b">The second byte array to compare.</param>
+            <returns>
+            <see langword="true"/> if the arrays are equal; otherwise, <see langword="false"/>.
+            </returns>
+        </member>
+        <member name="T:AppsettingsDiff.Utf8TextWriterStream">
+            <summary>
+            A write-only <see cref="T:System.IO.Stream"/> adapter that decodes UTF-8 bytes as they arrive and
+            forwards the resulting characters straight to a wrapped <see cref="T:System.IO.TextWriter"/>.
+            </summary>
+            <remarks>
+            A <see cref="T:System.Text.Json.Utf8JsonWriter"/> only knows how to write to a
+            <see cref="T:System.IO.Stream"/> or an <see cref="T:System.Buffers.IBufferWriter`1"/>, while every
+            report writer in this project needs to hand its output to an arbitrary
+            <see cref="T:System.IO.TextWriter"/> (console, file, or an in-memory <see cref="T:System.IO.StringWriter"/> for the
+            legacy string-returning APIs). Buffering the whole serialized payload in a
+            <see cref="T:System.IO.MemoryStream"/> before copying it to the target writer defeats the purpose of
+            streaming for large diffs (hundreds of environments x thousands of keys): peak memory still
+            scales with the full output size. This adapter removes that intermediate buffer - each
+            <see cref="T:System.Text.Json.Utf8JsonWriter"/> flush is decoded and written straight through, so memory use is
+            bounded by the writer's internal buffer size rather than by the total report size.
+            </remarks>
+        </member>
+        <member name="M:AppsettingsDiff.Utf8TextWriterStream.#ctor(System.IO.TextWriter)">
+            <summary>
+            Initializes a new instance of the <see cref="T:AppsettingsDiff.Utf8TextWriterStream"/> class.
+            </summary>
+            <param name="writer">The destination writer that decoded characters are forwarded to.</param>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="writer"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="P:AppsettingsDiff.Utf8TextWriterStream.CanRead">
+            <inheritdoc />
+        </member>
+        <member name="P:AppsettingsDiff.Utf8TextWriterStream.CanSeek">
+            <inheritdoc />
+        </member>
+        <member name="P:AppsettingsDiff.Utf8TextWriterStream.CanWrite">
+            <inheritdoc />
+        </member>
+        <member name="P:AppsettingsDiff.Utf8TextWriterStream.Length">
+            <inheritdoc />
+        </member>
+        <member name="P:AppsettingsDiff.Utf8TextWriterStream.Position">
+            <inheritdoc />
+        </member>
+        <member name="M:AppsettingsDiff.Utf8TextWriterStream.Flush">
+            <inheritdoc />
+        </member>
+        <member name="M:AppsettingsDiff.Utf8TextWriterStream.Write(System.ReadOnlySpan{System.Byte})">
+            <summary>
+            Decodes the supplied UTF-8 byte span and writes the resulting characters to the
+            wrapped <see cref="T:System.IO.TextWriter"/>.
+            </summary>
+            <param name="buffer">The UTF-8 encoded bytes to decode and forward.</param>
+        </member>
+        <member name="M:AppsettingsDiff.Utf8TextWriterStream.Write(System.Byte[],System.Int32,System.Int32)">
+            <inheritdoc />
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="buffer"/> is <see langword="null"/>.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.Utf8TextWriterStream.Read(System.Byte[],System.Int32,System.Int32)">
+            <inheritdoc />
+            <exception cref="T:System.NotSupportedException">Always thrown; this stream is write-only.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.Utf8TextWriterStream.Seek(System.Int64,System.IO.SeekOrigin)">
+            <inheritdoc />
+            <exception cref="T:System.NotSupportedException">Always thrown; this stream does not support seeking.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.Utf8TextWriterStream.SetLength(System.Int64)">
+            <inheritdoc />
+            <exception cref="T:System.NotSupportedException">Always thrown; this stream does not support setting a length.</exception>
+        </member>
+        <member name="T:AppsettingsDiff.YamlConfigReader">
+            <summary>
+            Provides methods for reading YAML configuration files.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.YamlConfigReader.ReadFile(System.String)">
+            <summary>
+            Reads a YAML configuration file from the specified path.
+            </summary>
+            <param name="path">The path to the YAML file.</param>
+            <returns>A dictionary representing the YAML configuration.</returns>
+            <exception cref="T:System.IO.FileNotFoundException">Thrown if the YAML file is not found.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.YamlConfigReader.Parse(System.String)">
+            <summary>
+            Parses a YAML configuration string into a dictionary.
+            Nested mappings are flattened to "Section:Key" paths and list items to "Key[index]".
+            </summary>
+            <param name="yamlContent">The YAML configuration string.</param>
+            <returns>A dictionary representing the YAML configuration.</returns>
+            <exception cref="T:System.ArgumentNullException">Thrown if <paramref name="yamlContent"/> is <see langword="null"/>.</exception>
+            <exception cref="T:System.NotSupportedException">Thrown if the YAML uses anchors, aliases or block scalars.</exception>
+            <exception cref="T:System.FormatException">Thrown if a non-empty line is neither a mapping nor a list item.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.YamlConfigReader.NormalizeValue(System.String)">
+            <summary>
+            Strips a trailing inline comment and matching surrounding quotes from a scalar value.
+            </summary>
+            <param name="value">The raw scalar value.</param>
+            <returns>The normalized scalar value.</returns>
+            <exception cref="T:System.NotSupportedException">Thrown if the value is an anchor, alias or block scalar.</exception>
+        </member>
+        <member name="M:AppsettingsDiff.YamlConfigReader.RemoveSectionEntry(System.Collections.Generic.Dictionary{System.String,System.String},System.String)">
+            <summary>
+            Removes a previously recorded empty entry for a key that turned out to be a section
+            (a parent of nested keys or list items), matching how JSON configuration is flattened.
+            </summary>
+        </member>
+        <member name="M:AppsettingsDiff.YamlConfigReader.GetIndentLevel(System.String)">
+            <summary>
+            Calculates the indentation level of a YAML line.
+            </summary>
+            <param name="line">The YAML line.</param>
+            <returns>The indentation level.</returns>
+        </member>
+        <member name="M:AppsettingsDiff.YamlConfigReader.BuildKey(System.Collections.Generic.List{System.String})">
+            <summary>
+            Builds a full key path from an ordered list of segments (outermost first).
+            </summary>
+            <param name="path">The key segments, outermost first.</param>
+            <returns>The full key path.</returns>
+        </member>
+    </members>
+</doc>
