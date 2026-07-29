@@ -38,9 +38,9 @@ namespace AppsettingsDiff
             var json = File.ReadAllText(path);
             return JsonSerializer.Deserialize<ConfigSchema>(json, new JsonSerializerOptions
             {
-                PropertyNameCaseInsensitive = true
-            }) ?? throw new InvalidOperationException("Failed to load schema from JSON");
-        }
+            PropertyNameCaseInsensitive = true
+            }) ?? throw new InvalidOperationException(Messages.FailedToLoadSchema);
+            }
 
         /// <summary>
         /// Infers a configuration schema from a JSON document.
@@ -284,7 +284,7 @@ namespace AppsettingsDiff
                     violations.Add(new SchemaViolation
                     {
                         KeyPath = key,
-                        Message = $"Required key '{key}' is missing",
+                        Message = Messages.RequiredKeyMissing(key),
                         IsMissing = true
                     });
                     continue;
@@ -304,28 +304,28 @@ namespace AppsettingsDiff
                             if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
                             {
                                 isValid = false;
-                                errorMessage = "Value must be a valid integer";
+                                errorMessage = Messages.ValueMustBeInteger;
                             }
                             break;
                         case "bool":
                             if (!bool.TryParse(value, out _))
                             {
                                 isValid = false;
-                                errorMessage = "Value must be a valid boolean";
+                                errorMessage = Messages.ValueMustBeBoolean;
                             }
                             break;
                         case "double":
                             if (!double.TryParse(value, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out _))
                             {
                                 isValid = false;
-                                errorMessage = "Value must be a valid double";
+                                errorMessage = Messages.ValueMustBeDouble;
                             }
                             break;
                         case "datetime":
                             if (!DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _))
                             {
                                 isValid = false;
-                                errorMessage = "Value must be a valid DateTime";
+                                errorMessage = Messages.ValueMustBeDateTime;
                             }
                             break;
                         case "url":
@@ -333,19 +333,19 @@ namespace AppsettingsDiff
                                 !uri.Scheme.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                             {
                                 isValid = false;
-                                errorMessage = "Value must be a valid URL";
+                                errorMessage = Messages.ValueMustBeUrl;
                             }
                             break;
                         case "guid":
                             if (!Guid.TryParse(value, out _))
                             {
                                 isValid = false;
-                                errorMessage = "Value must be a valid GUID";
+                                errorMessage = Messages.ValueMustBeGuid;
                             }
                             break;
                         default:
                             isValid = false;
-                            errorMessage = $"Unknown type hint '{typeHint}'";
+                            errorMessage = Messages.UnknownTypeHint(typeHint);
                             break;
                     }
 
@@ -372,7 +372,7 @@ namespace AppsettingsDiff
                         violations.Add(new SchemaViolation
                         {
                             KeyPath = key,
-                            Message = $"Configuration value contains a connection string with credentials (detected Password= or pwd= pattern)",
+                            Message = Messages.ConnectionStringCredentialsDetected,
                             IsSensitive = true
                         });
                     }
@@ -389,7 +389,7 @@ namespace AppsettingsDiff
                     violations.Add(new SchemaViolation
                     {
                         KeyPath = key,
-                        Message = $"Key '{key}' differs only by casing from another key in config. Keys are case-insensitive and should have unique casing.",
+                        Message = Messages.CasingConflict(key),
                         IsCasingConflict = true,
                         IsMissing = false,
                         IsUnknown = false
@@ -414,7 +414,7 @@ namespace AppsettingsDiff
                         violations.Add(new SchemaViolation
                         {
                             KeyPath = key,
-                            Message = $"Unknown key '{key}' is present in config but not defined in schema",
+                            Message = Messages.UnknownKeyPresent(key),
                             IsUnknown = true,
                             IsMissing = false
                         });

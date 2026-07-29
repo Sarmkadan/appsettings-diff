@@ -269,14 +269,14 @@ public static class Program
     private static int RunDirectoryDiff(DirectoryInfo? dir, string[]? envs, OutputOptions options)
     {
         if (dir is null)
-            throw new ArgumentException("The --dir option is required for directory mode.");
+            throw new ArgumentException(Messages.DirectoryOptionRequired);
 
         var environments = (envs ?? [])
             .SelectMany(e => e.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             .ToArray();
 
         if (environments.Length < 2)
-            throw new ArgumentException("At least two environments must be specified via --envs (e.g. --envs Production,Staging).");
+            throw new ArgumentException(Messages.InsufficientEnvironments);
 
         SensitiveKeyDetector detector;
         if (options.SensitivePatternsFile != null && options.SensitivePatternsFile.Exists)
@@ -336,7 +336,7 @@ private static void WriteResult(DiffResult result, List<SchemaViolation> schemaV
     if (schemaViolations.Count > 0)
     {
         Console.WriteLine();
-        Console.WriteLine("SCHEMA VIOLATIONS:");
+        Console.WriteLine(Messages.SchemaViolationsHeader);
         foreach (var v in schemaViolations)
         {
             Console.WriteLine($"- {v.Key}: {v.Message}");
@@ -392,7 +392,7 @@ private static void WriteResult(DiffResult result, List<SchemaViolation> schemaV
     private static Dictionary<string, string> LoadEnvironmentConfig(DirectoryInfo dir, string environment)
     {
         var envFile = FindConfigFile(dir, $"appsettings.{environment}")
-            ?? throw new FileNotFoundException($"No appsettings.{environment}.(json|yaml|yml) file found in '{dir.FullName}'.");
+            ?? throw new FileNotFoundException(Messages.FileNotFound(environment, dir.FullName));
 
         var sharedFile = FindConfigFile(dir, "appsettings");
         var effective = sharedFile is not null
