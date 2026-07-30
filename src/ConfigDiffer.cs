@@ -388,7 +388,11 @@ public class ConfigDiffer
             TargetPath = targetPath ?? "target"
         };
 
-        var ignoreSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var capacity = 0;
+        if (ignoreKeys is ICollection<string> collection1) capacity += collection1.Count;
+        if (options.IgnorePaths is ICollection<string> collection2) capacity += collection2.Count;
+
+        var ignoreSet = new HashSet<string>(capacity, StringComparer.OrdinalIgnoreCase);
         if (ignoreKeys != null)
         {
             foreach (var pattern in ignoreKeys)
@@ -527,7 +531,14 @@ public class ConfigDiffer
 
         // Count the number of colons in the key path
         // Each colon represents a level of nesting (e.g., "Section:Subsection:Key" has depth 2)
-        int depth = key.Split(':').Length - 1;
+        int depth = 0;
+        foreach (char c in key)
+        {
+            if (c == ':')
+            {
+                depth++;
+            }
+        }
         return depth >= maxDepth;
     }
 
@@ -712,7 +723,11 @@ public class ConfigDiffer
     /// <returns>A set of array values.</returns>
     private static HashSet<string> ExtractArrayValues(string arrayText)
     {
-        var values = new HashSet<string>(StringComparer.Ordinal);
+        // Estimate capacity based on newlines, plus 1
+        int capacity = 1;
+        foreach (char c in arrayText) { if (c == '\n') capacity++; }
+
+        var values = new HashSet<string>(capacity, StringComparer.Ordinal);
 
         // Split by newlines to get individual array elements
         var lines = arrayText.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
