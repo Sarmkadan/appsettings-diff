@@ -1,0 +1,1 @@
+Replace string-based output format parameters in src/DiffReportWriter.cs and src/Program.cs with a ReportFormat enum; parse user input once with a clear error on unknown format.
