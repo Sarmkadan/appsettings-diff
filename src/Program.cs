@@ -42,6 +42,15 @@ public static class Program
     /// <param name="args">Raw command-line arguments.</param>
     public static async Task<int> Main(string[] args)
     {
+        try
+        {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+        }
+        catch (IOException)
+        {
+            // Ignore if output is redirected to a file or pipe where setting encoding is not allowed.
+        }
+
         var baseArgument = new Argument<FileInfo>("base", "The base JSON/YAML file (use - to read from stdin)").ExistingOnly();
         var targetArgument = new Argument<FileInfo>("target", "The target JSON/YAML file (use - to read from stdin)").ExistingOnly();
 
