@@ -353,6 +353,15 @@ private static void WriteResult(DiffResult result, List<SchemaViolation> schemaV
     {
         var extension = Path.GetExtension(path);
 
+        // Read the file content first to detect empty or whitespace‑only files.
+        // If the file is empty, treat it as an empty configuration and emit a warning.
+        string fileContent = File.ReadAllText(path);
+        if (string.IsNullOrWhiteSpace(fileContent))
+        {
+            Console.Error.WriteLine($"Warning: configuration file '{path}' is empty or whitespace only; treating as empty configuration.");
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
         if (extension.Equals(".yaml", StringComparison.OrdinalIgnoreCase) ||
             extension.Equals(".yml", StringComparison.OrdinalIgnoreCase))
         {
