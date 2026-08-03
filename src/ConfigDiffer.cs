@@ -6,44 +6,41 @@ using System.Linq;
 namespace AppsettingsDiff;
 
 /// <summary>
-/// Options for configuring the diff operation
+/// Options for configuring the diff operation.
 /// </summary>
 public record ConfigDiffOptions
 {
     /// <summary>
-    /// Gets or sets a value indicating whether to compare arrays by value-set (unordered) instead of by index.
-    /// When true, arrays are compared as sets - order doesn't matter.
+    /// Gets a value indicating whether to compare arrays by value-set (unordered) instead of by index.
+    /// When <c>true</c>, arrays are compared as sets – order doesn't matter.
     /// </summary>
     public bool UnorderedArrays { get; init; }
 
     /// <summary>
-    /// Gets or sets the maximum depth to compare nested structures.
-    /// When null or 0, no depth limit is applied.
-    /// When greater than 0, subtrees deeper than this level are compared as opaque blobs.
+    /// Gets the maximum depth to compare nested structures.
+    /// <c>null</c> or <c>0</c> means no depth limit; a positive value limits comparison depth.
     /// </summary>
     public int? MaxDepth { get; init; }
 
     /// <summary>
-    /// Gets or sets the path prefix to filter keys by.
-    /// When set, only keys starting with this prefix will be compared.
+    /// Gets the path prefix to filter keys by.
+    /// Only keys starting with this prefix are compared when set.
     /// </summary>
     public string? PathPrefix { get; init; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether key comparisons should be case-sensitive.
-    /// When true, keys are compared using case-sensitive comparison.
-    /// When false (default), keys are compared using case-insensitive comparison.
+    /// Gets a value indicating whether key comparisons should be case‑sensitive.
     /// </summary>
     public bool CaseSensitiveKeys { get; init; }
 
     /// <summary>
-    /// Gets or sets additional key patterns to ignore during comparison.
-    /// These patterns are combined with any patterns passed to the Diff method.
+    /// Gets additional key patterns to ignore during comparison.
+    /// These patterns are combined with any patterns passed to the <see cref="ConfigDiffer.Diff"/> method.
     /// </summary>
     public IEnumerable<string>? IgnorePaths { get; init; }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ConfigDiffOptions"/> class with default values.
+    /// Initializes a new instance of <see cref="ConfigDiffOptions"/> with default values.
     /// </summary>
     public ConfigDiffOptions()
     {
@@ -56,7 +53,7 @@ public record ConfigDiffOptions
 }
 
 /// <summary>
-/// Detects sensitive keys in configuration
+/// Detects sensitive keys in configuration based on wildcard patterns.
 /// </summary>
 public class SensitiveKeyDetector
 {
@@ -64,14 +61,14 @@ public class SensitiveKeyDetector
     private readonly bool _caseSensitive;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SensitiveKeyDetector"/> class with default patterns.
+    /// Initializes a new instance of <see cref="SensitiveKeyDetector"/> with the default patterns.
     /// </summary>
     public SensitiveKeyDetector() : this(LoadDefaultPatterns(), caseSensitive: false)
     {
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SensitiveKeyDetector"/> class with custom patterns.
+    /// Initializes a new instance of <see cref="SensitiveKeyDetector"/> with custom patterns.
     /// </summary>
     /// <param name="customPatterns">Custom sensitive patterns to use.</param>
     public SensitiveKeyDetector(IEnumerable<string> customPatterns) : this(customPatterns, caseSensitive: false)
@@ -79,10 +76,10 @@ public class SensitiveKeyDetector
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SensitiveKeyDetector"/> class with custom patterns and case sensitivity.
+    /// Initializes a new instance of <see cref="SensitiveKeyDetector"/> with custom patterns and case sensitivity.
     /// </summary>
     /// <param name="customPatterns">Custom sensitive patterns to use.</param>
-    /// <param name="caseSensitive">Whether pattern matching should be case-sensitive.</param>
+    /// <param name="caseSensitive">Whether pattern matching should be case‑sensitive.</param>
     public SensitiveKeyDetector(IEnumerable<string> customPatterns, bool caseSensitive)
     {
         _sensitivePatterns = customPatterns?.ToArray() ?? Array.Empty<string>();
@@ -90,9 +87,9 @@ public class SensitiveKeyDetector
     }
 
     /// <summary>
-    /// Loads default sensitive patterns.
+    /// Loads the default sensitive patterns.
     /// </summary>
-    /// <returns>Array of default sensitive patterns.</returns>
+    /// <returns>An array of default sensitive patterns.</returns>
     private static string[] LoadDefaultPatterns()
     {
         return [
@@ -109,11 +106,13 @@ public class SensitiveKeyDetector
     }
 
     /// <summary>
-    /// Loads sensitive patterns from a file (one wildcard pattern per line, # comments allowed).
+    /// Loads sensitive patterns from a file (one wildcard pattern per line, <c>#</c> comments allowed) and combines them with the defaults.
     /// </summary>
     /// <param name="path">Path to the file containing custom patterns.</param>
-    /// <returns>Array of patterns loaded from file, combined with default patterns.</returns>
+    /// <returns>A <see cref="SensitiveKeyDetector"/> configured with the combined patterns.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="path"/> is null, empty, or whitespace.</exception>
     /// <exception cref="FileNotFoundException">Thrown when the specified file does not exist.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the file cannot be read.</exception>
     public static SensitiveKeyDetector LoadWithCustomPatterns(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -145,9 +144,9 @@ public class SensitiveKeyDetector
     }
 
     /// <summary>
-    /// Gets the loaded sensitive patterns.
+    /// Returns the loaded sensitive patterns.
     /// </summary>
-    /// <returns>Array of sensitive patterns.</returns>
+    /// <returns>An array of sensitive patterns.</returns>
     internal string[] GetPatterns()
     {
         return _sensitivePatterns;
@@ -157,7 +156,7 @@ public class SensitiveKeyDetector
     /// Determines whether the given configuration key matches any of the known sensitive patterns.
     /// </summary>
     /// <param name="key">The configuration key to check.</param>
-    /// <returns><see langword="true"/> if the key looks sensitive; otherwise <see langword="false"/>.</returns>
+    /// <returns><c>true</c> if the key looks sensitive; otherwise <c>false</c>.</returns>
     public bool IsSensitive(string key)
     {
         if (string.IsNullOrWhiteSpace(key))
@@ -175,11 +174,18 @@ public class SensitiveKeyDetector
 }
 
 /// <summary>
-/// Case-insensitive wildcard matching for configuration key patterns,
+/// Provides case‑insensitive wildcard matching for configuration key patterns,
 /// where <c>*</c> matches any (possibly empty) sequence of characters.
 /// </summary>
 internal static class KeyPatternMatcher
 {
+    /// <summary>
+    /// Determines whether <paramref name="text"/> matches <paramref name="pattern"/>.
+    /// </summary>
+    /// <param name="text">The text to test.</param>
+    /// <param name="pattern">The pattern that may contain <c>*</c> wildcards.</param>
+    /// <param name="comparison">The string comparison to use (default is case‑insensitive).</param>
+    /// <returns><c>true</c> if the text matches the pattern; otherwise <c>false</c>.</returns>
     public static bool IsMatch(string text, string pattern, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
     {
         if (!pattern.Contains('*'))
@@ -227,24 +233,32 @@ internal static class KeyPatternMatcher
 }
 
 /// <summary>
-/// Represents a flat configuration with key-value pairs
+/// Represents a flat configuration with key‑value pairs.
 /// </summary>
 public class FlatConfig
 {
-    /// <summary>Gets the flattened key-value pairs of the configuration.</summary>
+    /// <summary>
+    /// Gets the flattened key‑value pairs of the configuration.
+    /// </summary>
     public Dictionary<string, string> Values { get; } = [];
 
-    /// <summary>Gets the value for <paramref name="key"/>, or an empty string when the key is absent.</summary>
+    /// <summary>
+    /// Gets the value for <paramref name="key"/>, or an empty string when the key is absent.
+    /// </summary>
     /// <param name="key">The configuration key to look up.</param>
+    /// <returns>The associated value, or <c>string.Empty</c> if the key does not exist.</returns>
     public string GetValue(string key) => Values.TryGetValue(key, out var value) ? value : string.Empty;
 
-    /// <summary>Determines whether the configuration contains <paramref name="key"/>.</summary>
+    /// <summary>
+    /// Determines whether the configuration contains <paramref name="key"/>.
+    /// </summary>
     /// <param name="key">The configuration key to check.</param>
+    /// <returns><c>true</c> if the key exists; otherwise <c>false</c>.</returns>
     public bool ContainsKey(string key) => Values.ContainsKey(key);
 }
 
 /// <summary>
-/// Represents the type of difference
+/// Represents the type of difference between two configurations.
 /// </summary>
 public enum DiffKind
 {
@@ -262,7 +276,7 @@ public enum DiffKind
 }
 
 /// <summary>
-/// Represents a single difference entry
+/// Represents a single difference entry.
 /// </summary>
 public class DiffEntry
 {
@@ -272,10 +286,10 @@ public class DiffEntry
     /// <summary>Gets the configuration key the difference applies to.</summary>
     public required string Key { get; init; }
 
-    /// <summary>Gets the baseline value, or <see langword="null"/> for added keys.</summary>
+    /// <summary>Gets the baseline value, or <c>null</c> for added keys.</summary>
     public string? OldValue { get; init; }
 
-    /// <summary>Gets the target value, or <see langword="null"/> for removed keys.</summary>
+    /// <summary>Gets the target value, or <c>null</c> for removed keys.</summary>
     public string? NewValue { get; init; }
 
     /// <summary>Gets a value indicating whether the key is considered sensitive.</summary>
@@ -286,19 +300,19 @@ public class DiffEntry
 
     /// <summary>
     /// Gets the type of the baseline value (e.g., "string", "number", "boolean", "object", "null").
-    /// Only relevant for TypeChanged differences.
+    /// Only relevant for <see cref="DiffKind.TypeChanged"/> differences.
     /// </summary>
     public string? OldType { get; init; }
 
     /// <summary>
     /// Gets the type of the target value (e.g., "string", "number", "boolean", "object", "null").
-    /// Only relevant for TypeChanged differences.
+    /// Only relevant for <see cref="DiffKind.TypeChanged"/> differences.
     /// </summary>
     public string? NewType { get; init; }
 }
 
 /// <summary>
-/// Result of a diff operation
+/// Result of a diff operation.
 /// </summary>
 public class DiffResult
 {
@@ -318,6 +332,7 @@ public class DiffResult
     /// Counts the entries of the specified <paramref name="kind"/>.
     /// </summary>
     /// <param name="kind">The kind of difference to count.</param>
+    /// <returns>The number of entries of that kind.</returns>
     public int CountOf(DiffKind kind) => Entries.Count(e => e.Kind == kind);
 
     /// <summary>
@@ -327,17 +342,17 @@ public class DiffResult
 }
 
 /// <summary>
-/// Main diffing class that compares two configurations
+/// Main diffing class that compares two configurations.
 /// </summary>
 public class ConfigDiffer
 {
     private readonly SensitiveKeyDetector _detector;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ConfigDiffer"/> class.
+    /// Initializes a new instance of <see cref="ConfigDiffer"/>.
     /// </summary>
     /// <param name="detector">Detector used to flag sensitive keys in the produced entries.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="detector"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="detector"/> is <c>null</c>.</exception>
     public ConfigDiffer(SensitiveKeyDetector detector)
     {
         ArgumentNullException.ThrowIfNull(detector);
@@ -345,11 +360,11 @@ public class ConfigDiffer
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ConfigDiffer"/> class with case-sensitive key comparisons.
+    /// Initializes a new instance of <see cref="ConfigDiffer"/> with case‑sensitive key comparisons.
     /// </summary>
     /// <param name="detector">Detector used to flag sensitive keys in the produced entries.</param>
-    /// <param name="caseSensitiveKeys">Whether key comparisons should be case-sensitive.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="detector"/> is <see langword="null"/>.</exception>
+    /// <param name="caseSensitiveKeys">Whether key comparisons should be case‑sensitive.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="detector"/> is <c>null</c>.</exception>
     public ConfigDiffer(SensitiveKeyDetector detector, bool caseSensitiveKeys)
     {
         ArgumentNullException.ThrowIfNull(detector);
@@ -361,12 +376,12 @@ public class ConfigDiffer
     /// </summary>
     /// <param name="baseline">The baseline configuration.</param>
     /// <param name="target">The target configuration.</param>
-    /// <param name="ignoreKeys">Optional key patterns to skip; supports <c>*</c> wildcards, otherwise matched as a case-insensitive substring.</param>
+    /// <param name="ignoreKeys">Optional key patterns to skip; supports <c>*</c> wildcards, otherwise matched as a case‑insensitive substring.</param>
     /// <param name="basePath">Optional identifier for the baseline (e.g. a file path) recorded in the result.</param>
     /// <param name="targetPath">Optional identifier for the target (e.g. a file path) recorded in the result.</param>
     /// <param name="options">Optional configuration options for the diff operation.</param>
     /// <returns>A <see cref="DiffResult"/> describing the differences.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="baseline"/> or <paramref name="target"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="baseline"/> or <paramref name="target"/> is <c>null</c>.</exception>
     public DiffResult Diff(
         FlatConfig baseline,
         FlatConfig target,
@@ -522,8 +537,8 @@ public class ConfigDiffer
     /// Determines if a key path exceeds the maximum depth.
     /// </summary>
     /// <param name="key">The configuration key path.</param>
-    /// <param name="maxDepth">The maximum allowed depth (null or 0 means no limit).</param>
-    /// <returns>True if the key path exceeds the maximum depth; otherwise false.</returns>
+    /// <param name="maxDepth">The maximum allowed depth (<c>null</c> or <c>0</c> means no limit).</param>
+    /// <returns><c>true</c> if the key path exceeds the maximum depth; otherwise <c>false</c>.</returns>
     private bool ExceedsMaxDepth(string key, int? maxDepth)
     {
         if (maxDepth == null || maxDepth <= 0)
@@ -549,7 +564,7 @@ public class ConfigDiffer
     /// <param name="value1">The baseline value.</param>
     /// <param name="value2">The target value.</param>
     /// <param name="maxDepth">The maximum allowed depth.</param>
-    /// <returns>True if the values are equal as opaque blobs; otherwise false.</returns>
+    /// <returns><c>true</c> if the values are equal as opaque blobs; otherwise <c>false</c>.</returns>
     private bool AreValuesEqualAsBlobs(string key, string? value1, string? value2, int? maxDepth)
     {
         // If either value is null, use standard comparison
@@ -586,7 +601,7 @@ public class ConfigDiffer
     /// <param name="value1">The first value to compare.</param>
     /// <param name="value2">The second value to compare.</param>
     /// <param name="options">The diff options that may enable unordered array comparison.</param>
-    /// <returns>True if the values are equal; otherwise false.</returns>
+    /// <returns><c>true</c> if the values are equal; otherwise <c>false</c>.</returns>
     private bool AreValuesEqual(string? value1, string? value2, ConfigDiffOptions options)
     {
         // If either value is null, use standard comparison
@@ -624,7 +639,7 @@ public class ConfigDiffer
     /// Determines if a value represents an array element (contains array index notation).
     /// </summary>
     /// <param name="value">The value to check.</param>
-    /// <returns>True if the value is an array element; otherwise false.</returns>
+    /// <returns><c>true</c> if the value is an array element; otherwise <c>false</c>.</returns>
     private static bool IsArrayValue(string value)
     {
         return value.Contains('[') && value.EndsWith(']');
@@ -674,7 +689,7 @@ public class ConfigDiffer
     /// </summary>
     /// <param name="value1">The first value.</param>
     /// <param name="value2">The second value.</param>
-    /// <returns>True if the types are different; otherwise false.</returns>
+    /// <returns><c>true</c> if the types are different; otherwise <c>false</c>.</returns>
     private static bool HasDifferentTypes(string? value1, string? value2)
     {
         var type1 = DetectJsonType(value1);
@@ -686,9 +701,9 @@ public class ConfigDiffer
     /// Determines if a key matches the path prefix filter.
     /// </summary>
     /// <param name="key">The configuration key to check.</param>
-    /// <param name="pathPrefix">The path prefix to filter by (null or empty means no filtering).</param>
-    /// <param name="caseSensitive">Whether the comparison should be case-sensitive.</param>
-    /// <returns>True if the key matches the prefix filter; otherwise false.</returns>
+    /// <param name="pathPrefix">The path prefix to filter by (<c>null</c> or empty means no filtering).</param>
+    /// <param name="caseSensitive">Whether the comparison should be case‑sensitive.</param>
+    /// <returns><c>true</c> if the key matches the prefix filter; otherwise <c>false</c>.</returns>
     private bool MatchesPathPrefix(string key, string? pathPrefix, bool caseSensitive = false)
     {
         if (string.IsNullOrEmpty(pathPrefix))
@@ -702,7 +717,7 @@ public class ConfigDiffer
     }
 
     /// <summary>
-    /// Extracts the base array key from an array element key (e.g., "MyArray[0]" -> "MyArray").
+    /// Extracts the base array key from an array element key (e.g., "MyArray[0]" → "MyArray").
     /// </summary>
     /// <param name="arrayElementKey">The array element key.</param>
     /// <returns>The base array key.</returns>
@@ -717,7 +732,7 @@ public class ConfigDiffer
 
     /// <summary>
     /// Extracts all values from an array representation.
-    /// For "MyArray[0]:value1\nMyArray[1]:value2", returns {"value1", "value2"}.
+    /// For "MyArray[0]:value1\nMyArray[1]:value2", returns a set containing {"value1", "value2"}.
     /// </summary>
     /// <param name="arrayText">The text containing array elements.</param>
     /// <returns>A set of array values.</returns>
