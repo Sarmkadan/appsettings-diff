@@ -19,3 +19,26 @@ var result = EnvVarOverlay.Apply(config, envVars);
 Console.WriteLine($"Updated config: {result}");
 Console.WriteLine($"Overridden keys: {result.overriddenKeys}");
 ```
+
+## JsonPatchOperation
+
+`JsonPatchOperation` represents a single operation in a JSON Patch document, following RFC 6902. It exposes the operation type (`Op`), the target JSON pointer (`Path`), optional value (`Value`) or source pointer (`From`), and helper methods to serialize the operation or write it to the console in various formats.
+
+### Example usage
+```csharp
+using AppsettingsDiff;
+
+var patch = new JsonPatchOperation
+{
+    Op = "replace",
+    Path = "/Logging/LogLevel/Default",
+    Value = "Warning"
+};
+
+string jsonPatch = patch.ToJsonPatch();
+Console.WriteLine(jsonPatch);          // Outputs the JSON Patch string
+
+patch.WriteConsole();                  // Writes a human‑readable representation to the console
+patch.WriteMarkdown();                 // Writes a Markdown table to the console
+patch.WriteHtml();                     // Writes an HTML table to the console
+```
