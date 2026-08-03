@@ -1,7 +1,7 @@
 namespace AppsettingsDiff;
 
 /// <summary>
-/// Result of a three-way merge operation.
+/// Represents the result of a three‑way merge operation.
 /// </summary>
 public sealed class MergeResult
 {
@@ -22,7 +22,7 @@ public sealed class MergeResult
 }
 
 /// <summary>
-/// Represents a merge conflict encountered during a three-way merge.
+/// Represents a merge conflict encountered during a three‑way merge.
 /// </summary>
 public sealed class MergeConflict
 {
@@ -52,9 +52,9 @@ public sealed class MergeConflict
     public bool AutoResolved { get; init; }
 
     /// <summary>
-    /// Gets a human-readable explanation of why this conflict was recorded, if any.
-    /// This is set for conflicts that arise from special handling (such as whole-array
-    /// merges) rather than a plain scalar value mismatch.
+    /// Gets a human‑readable explanation of why this conflict was recorded, if any.
+    /// This is set for conflicts that arise from special handling (such as whole‑array merges)
+    /// rather than a plain scalar value mismatch.
     /// </summary>
     public string? Reason { get; init; }
 }
@@ -81,19 +81,19 @@ public enum ConflictResolutionStrategy
 }
 
 /// <summary>
-/// Performs a three-way merge of configuration dictionaries (base, ours, theirs).
+/// Performs a three‑way merge of configuration dictionaries (base, ours, theirs).
 /// </summary>
 public static class ThreeWayMerger
 {
     /// <summary>
-    /// Merges three configuration dictionaries using three-way merge algorithm.
+    /// Merges three configuration dictionaries using the three‑way merge algorithm.
     /// </summary>
     /// <param name="baseConfig">The base configuration to merge from.</param>
     /// <param name="ours">Our local configuration with changes.</param>
     /// <param name="theirs">Their remote configuration with changes.</param>
     /// <returns>A <see cref="MergeResult"/> containing the merged configuration and any conflicts.</returns>
     /// <exception cref="ArgumentNullException">
-    /// Thrown when <paramref name="baseConfig"/>, <paramref name="ours"/> or <paramref name="theirs"/> is <see langword="null"/>.
+    /// Thrown when <paramref name="baseConfig"/>, <paramref name="ours"/> or <paramref name="theirs"/> is <c>null</c>.
     /// </exception>
     public static MergeResult Merge(
         Dictionary<string, string> baseConfig,
@@ -104,7 +104,7 @@ public static class ThreeWayMerger
     }
 
     /// <summary>
-    /// Merges three configuration dictionaries using three-way merge algorithm with automatic conflict resolution.
+    /// Merges three configuration dictionaries using the three‑way merge algorithm with automatic conflict resolution.
     /// </summary>
     /// <param name="baseConfig">The base configuration to merge from.</param>
     /// <param name="ours">Our local configuration with changes.</param>
@@ -112,7 +112,7 @@ public static class ThreeWayMerger
     /// <param name="strategy">The conflict resolution strategy to use.</param>
     /// <returns>A <see cref="MergeResult"/> containing the merged configuration and any conflicts.</returns>
     /// <exception cref="ArgumentNullException">
-    /// Thrown when <paramref name="baseConfig"/>, <paramref name="ours"/>, <paramref name="theirs"/> or <paramref name="strategy"/> is <see langword="null"/>.
+    /// Thrown when <paramref name="baseConfig"/>, <paramref name="ours"/>, <paramref name="theirs"/> or <paramref name="strategy"/> is <c>null</c>.
     /// </exception>
     public static MergeResult Merge(
         Dictionary<string, string> baseConfig,
@@ -136,7 +136,7 @@ public static class ThreeWayMerger
 
         // Group keys that belong to a flattened array (e.g. "Section:0", "Section:1:Name")
         // by their array root ("Section"). These are merged as whole units below instead of
-        // being merged key-by-key, because index shifts (insert/delete/reorder) on one side
+        // being merged key‑by‑key, because index shifts (insert/delete/reorder) on one side
         // make positional keys line up with unrelated elements on the other side.
         var arrayGroups = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         foreach (var key in allKeys)
@@ -206,7 +206,7 @@ public static class ThreeWayMerger
                 switch (strategy)
                 {
                     case ConflictResolutionStrategy.Manual:
-                        // Keep both values, mark as not auto-resolved
+                        // Keep both values, mark as not auto‑resolved
                         resolvedValue = ourValue; // Default to our side for backward compatibility
                         break;
 
@@ -244,15 +244,14 @@ public static class ThreeWayMerger
 
     /// <summary>
     /// Determines whether a flattened configuration key is part of an array element
-    /// (i.e. it contains a purely numeric colon-separated segment representing an
-    /// array index) and, if so, returns the key path preceding that index - the
-    /// "array root". Returns <see langword="null"/> when the key does not belong to
-    /// an array.
+    /// (i.e. it contains a purely numeric colon‑separated segment representing an
+    /// array index) and, if so, returns the key path preceding that index – the
+    /// "array root". Returns <c>null</c> when the key does not belong to an array.
     /// </summary>
     /// <param name="key">The flattened configuration key to inspect.</param>
     /// <returns>
-    /// The array root path (which may be an empty string for a top-level array), or
-    /// <see langword="null"/> if <paramref name="key"/> contains no numeric index segment.
+    /// The array root path (which may be an empty string for a top‑level array), or
+    /// <c>null</c> if <paramref name="key"/> contains no numeric index segment.
     /// </returns>
     private static string? DetectArrayRoot(string key)
     {
@@ -268,8 +267,8 @@ public static class ThreeWayMerger
 
     /// <summary>
     /// Merges a single flattened array (all keys sharing an array root) as one atomic
-    /// unit rather than key-by-key, so that index shifts caused by an insert, delete or
-    /// reorder on either side cannot be misread as unrelated per-index conflicts or
+    /// unit rather than key‑by‑key, so that index shifts caused by an insert, delete or
+    /// reorder on either side cannot be misread as unrelated per‑index conflicts or
     /// silently produce duplicated/misaligned elements.
     /// </summary>
     /// <param name="arrayRoot">The array root path shared by all keys in <paramref name="groupKeys"/>.</param>
@@ -279,7 +278,7 @@ public static class ThreeWayMerger
     /// <param name="theirs">Their remote configuration.</param>
     /// <param name="strategy">The conflict resolution strategy to use when both sides changed the array.</param>
     /// <param name="merged">The merged dictionary being built; winning entries are written into it.</param>
-    /// <param name="conflicts">The conflict list being built; an array-level conflict is appended to it when both sides diverge.</param>
+    /// <param name="conflicts">The conflict list being built; an array‑level conflict is appended to it when both sides diverge.</param>
     private static void MergeArrayGroup(
         string arrayRoot,
         List<string> groupKeys,
@@ -326,10 +325,10 @@ public static class ThreeWayMerger
         }
 
         // Both sides changed the array differently (insert/delete/reorder on either or
-        // both sides). Positional per-index comparison is unsafe here because a shifted
-        // index can make an inserted element line up against an unrelated pre-existing
+        // both sides). Positional per‑index comparison is unsafe here because a shifted
+        // index can make an inserted element line up against an unrelated pre‑existing
         // one, so the whole array is treated as a conflicting unit rather than merged
-        // element-by-element.
+        // element‑by‑element.
         var autoResolved = false;
 
         switch (strategy)
@@ -359,7 +358,7 @@ public static class ThreeWayMerger
             AutoResolved = autoResolved,
             Reason = "Both sides modified array elements under this key (insert, delete or reorder). " +
                      "Flattened array indices are not stable across such changes, so the array was " +
-                     "merged as a whole value instead of per-index to avoid misaligned or duplicated elements."
+                     "merged as a whole value instead of per‑index to avoid misaligned or duplicated elements."
         });
     }
 
@@ -386,7 +385,7 @@ public static class ThreeWayMerger
     /// </summary>
     /// <param name="left">The first slice to compare.</param>
     /// <param name="right">The second slice to compare.</param>
-    /// <returns><see langword="true"/> if both slices have identical keys and values; otherwise <see langword="false"/>.</returns>
+    /// <returns><c>true</c> if both slices have identical keys and values; otherwise <c>false</c>.</returns>
     private static bool SliceEquals(Dictionary<string, string> left, Dictionary<string, string> right) =>
         left.Count == right.Count &&
         left.All(kv => right.TryGetValue(kv.Key, out var value) && TimingSafeComparer.FixedTimeEquals(kv.Value, value));
@@ -403,10 +402,10 @@ public static class ThreeWayMerger
     }
 
     /// <summary>
-    /// Serializes an array slice into a deterministic, human-readable string for display in a <see cref="MergeConflict"/>.
+    /// Serializes an array slice into a deterministic, human‑readable string for display in a <see cref="MergeConflict"/>.
     /// </summary>
     /// <param name="slice">The slice to serialize.</param>
-    /// <returns>A semicolon-separated "key=value" representation ordered by key, or <see langword="null"/> if the slice is empty.</returns>
+    /// <returns>A semicolon‑separated <c>"key=value"</c> representation ordered by key, or <c>null</c> if the slice is empty.</returns>
     private static string? SerializeSlice(Dictionary<string, string> slice) =>
         slice.Count == 0
             ? null
