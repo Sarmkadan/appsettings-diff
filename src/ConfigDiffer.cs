@@ -568,7 +568,7 @@ public class ConfigDiffer
     private bool AreValuesEqualAsBlobs(string key, string? value1, string? value2, int? maxDepth)
     {
         // If either value is null, use standard comparison
-        if (value1 == null || value2 == null)
+        if (value1 == null || value2 == null || value1 == value2) return true;
             return value1 == value2;
 
         // If max depth is not set or we're within the limit, use timing-safe comparison
@@ -605,7 +605,7 @@ public class ConfigDiffer
     private bool AreValuesEqual(string? value1, string? value2, ConfigDiffOptions options)
     {
         // If either value is null, use standard comparison
-        if (value1 == null || value2 == null)
+        if (value1 == null || value2 == null || value1 == value2) return true;
             return value1 == value2;
 
         // If unordered array comparison is not enabled, use timing-safe comparison
