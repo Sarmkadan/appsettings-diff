@@ -1,16 +1,22 @@
 namespace AppsettingsDiff;
 
 /// <summary>
-/// Накладывает переменные окружения поверх FlatConfig по правилам ASP.NET Core.
-/// Обрабатывает специальные префиксы (ASPNETCORE_, DOTNET_) и замену '__' на ':'
+/// Provides methods to overlay environment variables onto a configuration dictionary
+/// following ASP.NET Core conventions (handling special prefixes and '__' to ':' conversion).
 /// </summary>
 public static class EnvVarOverlay
 {
     /// <summary>
-    /// Считывает переменные окружения с указанным префиксом.
+    /// Reads environment variables that start with the specified <paramref name="prefix"/>.
     /// </summary>
-    /// <param name="prefix">Префикс для фильтрации переменных окружения (null - все переменные).</param>
-    /// <returns>Словарь переменных окружения.</returns>
+    /// <param name="prefix">
+    /// The prefix used to filter environment variables. Must not be <c>null</c>.
+    /// </param>
+    /// <returns>
+    /// A dictionary containing the matching environment variables (key/value pairs) with
+    /// case‑insensitive keys.
+    /// </returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="prefix"/> is <c>null</c>.</exception>
     public static Dictionary<string, string> ReadFromEnvironment(string? prefix = null)
     {
         ArgumentNullException.ThrowIfNull(prefix);
@@ -32,11 +38,14 @@ public static class EnvVarOverlay
     }
 
     /// <summary>
-    /// Нормализует переменные окружения: удаляет префиксы ASPNETCORE_ и DOTNET_, заменяет '__' на ':'.
+    /// Normalizes environment variable keys by removing ASP.NET Core specific prefixes
+    /// and converting double underscores to colons.
     /// </summary>
-    /// <param name="envVars">Исходные переменные окружения.</param>
-    /// <returns>Нормализованные переменные.</returns>
-    /// <exception cref="ArgumentNullException">Если <paramref name="envVars"/> равен <see langword="null"/>.</exception>
+    /// <param name="envVars">The source environment variables. Must not be <c>null</c>.</param>
+    /// <returns>
+    /// A new dictionary with normalized keys (case‑insensitive) and the original values.
+    /// </returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="envVars"/> is <c>null</c>.</exception>
     public static Dictionary<string, string> Normalize(IDictionary<string, string> envVars)
     {
         ArgumentNullException.ThrowIfNull(envVars);
@@ -71,13 +80,20 @@ public static class EnvVarOverlay
     }
 
     /// <summary>
-    /// Накладывает переменные окружения поверх конфигурации.
+    /// Overlays the supplied environment variables onto the given configuration dictionary.
     /// </summary>
-    /// <param name="config">Исходная конфигурация.</param>
-    /// <param name="envVars">Переменные окружения для наложения.</param>
-    /// <param name="overriddenKeys">Список ключей, которые были перекрыты (выходной параметр).</param>
-    /// <returns>Новая конфигурация с применёнными переменными окружения.</returns>
-    /// <exception cref="ArgumentNullException">Если <paramref name="config"/> или <paramref name="envVars"/> равен <see langword="null"/>.</exception>
+    /// <param name="config">The original configuration dictionary. Must not be <c>null</c>.</param>
+    /// <param name="envVars">The environment variables to overlay. Must not be <c>null</c>.</param>
+    /// <param name="overriddenKeys">
+    /// An output list that will contain the keys from <paramref name="config"/> that were
+    /// overridden by <paramref name="envVars"/>.
+    /// </param>
+    /// <returns>
+    /// A new configuration dictionary that includes the applied environment variables.
+    /// </returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="config"/> or <paramref name="envVars"/> is <c>null</c>.
+    /// </exception>
     public static Dictionary<string, string> Apply(Dictionary<string, string> config, IDictionary<string, string> envVars, out List<string> overriddenKeys)
     {
         ArgumentNullException.ThrowIfNull(config);
@@ -124,8 +140,25 @@ public static class EnvVarOverlay
     }
 
     /// <summary>
-    /// Накладывает переменные окружения поверх конфигурации, используя опциональный префикс.
+    /// Overlays the supplied environment variables onto the given configuration dictionary,
+    /// optionally filtering by a custom <paramref name="prefix"/>.
     /// </summary>
+    /// <param name="config">The original configuration dictionary. Must not be <c>null</c>.</param>
+    /// <param name="envVars">The environment variables to overlay. Must not be <c>null</c>.</param>
+    /// <param name="prefix">
+    /// An optional prefix used to filter and strip keys from <paramref name="envVars"/>.
+    /// If <c>null</c> or empty, no custom prefix filtering is applied.
+    /// </param>
+    /// <param name="overriddenKeys">
+    /// An output list that will contain the keys from <paramref name="config"/> that were
+    /// overridden by the processed environment variables.
+    /// </param>
+    /// <returns>
+    /// A new configuration dictionary that includes the applied environment variables.
+    /// </returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="config"/> or <paramref name="envVars"/> is <c>null</c>.
+    /// </exception>
     public static Dictionary<string, string> Apply(Dictionary<string, string> config, IDictionary<string, string> envVars, string? prefix, out List<string> overriddenKeys)
     {
         ArgumentNullException.ThrowIfNull(config);
