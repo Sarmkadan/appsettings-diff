@@ -45,6 +45,7 @@ public sealed class PlaceholderDetector
     /// Gets the full list of patterns this detector matches against,
     /// including the built-in defaults and any extra patterns supplied at construction.
     /// </summary>
+    /// <returns>The read‑only list of placeholder patterns.</returns>
     public IReadOnlyList<string> Patterns => _patterns;
 
     /// <summary>
