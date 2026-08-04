@@ -14,12 +14,12 @@ namespace AppsettingsDiff
     public class ConfigSchema
     {
         /// <summary>
-        /// Gets the list of required keys in the schema.
+        /// Gets or sets the list of required keys in the schema.
         /// </summary>
         public List<string> RequiredKeys { get; set; } = new List<string>();
 
         /// <summary>
-        /// Gets the dictionary of type hints for keys in the schema.
+        /// Gets or sets the dictionary of type hints for keys in the schema.
         /// </summary>
         public Dictionary<string, string> TypeHints { get; set; } = new Dictionary<string, string>();
 
@@ -38,9 +38,9 @@ namespace AppsettingsDiff
             var json = File.ReadAllText(path);
             return JsonSerializer.Deserialize<ConfigSchema>(json, new JsonSerializerOptions
             {
-            PropertyNameCaseInsensitive = true
+                PropertyNameCaseInsensitive = true
             }) ?? throw new InvalidOperationException(Messages.FailedToLoadSchema);
-            }
+        }
 
         /// <summary>
         /// Infers a configuration schema from a JSON document.
@@ -265,7 +265,7 @@ namespace AppsettingsDiff
         /// </summary>
         /// <param name="config">The configuration to validate.</param>
         /// <param name="schema">The schema to validate against.</param>
-        /// <returns>A list of schema violations.</returns>
+        /// <returns>A read‑only list of <see cref="SchemaViolation"/> objects describing any violations.</returns>
         /// <exception cref="ArgumentNullException">
         /// Thrown when <paramref name="config"/> or <paramref name="schema"/> is <see langword="null"/>.
         /// </exception>
@@ -283,7 +283,7 @@ namespace AppsettingsDiff
                 {
                     violations.Add(new SchemaViolation
                     {
-                        KeyPath = key,
+                        KeyPath = new ConfigPath(key),
                         Message = Messages.RequiredKeyMissing(key),
                         IsMissing = true
                     });
@@ -353,7 +353,7 @@ namespace AppsettingsDiff
                     {
                         violations.Add(new SchemaViolation
                         {
-                            KeyPath = key,
+                            KeyPath = new ConfigPath(key),
                             Message = errorMessage,
                             IsMissing = false
                         });
@@ -371,7 +371,7 @@ namespace AppsettingsDiff
                     {
                         violations.Add(new SchemaViolation
                         {
-                            KeyPath = key,
+                            KeyPath = new ConfigPath(key),
                             Message = Messages.ConnectionStringCredentialsDetected,
                             IsSensitive = true
                         });
@@ -388,7 +388,7 @@ namespace AppsettingsDiff
                 {
                     violations.Add(new SchemaViolation
                     {
-                        KeyPath = key,
+                        KeyPath = new ConfigPath(key),
                         Message = Messages.CasingConflict(key),
                         IsCasingConflict = true,
                         IsMissing = false,
@@ -413,7 +413,7 @@ namespace AppsettingsDiff
                     {
                         violations.Add(new SchemaViolation
                         {
-                            KeyPath = key,
+                            KeyPath = new ConfigPath(key),
                             Message = Messages.UnknownKeyPresent(key),
                             IsUnknown = true,
                             IsMissing = false
@@ -447,41 +447,41 @@ namespace AppsettingsDiff
     public class SchemaViolation
     {
         /// <summary>
-        /// Gets the key that is in violation.
+        /// Gets or sets the configuration path that is in violation.
         /// </summary>
         public ConfigPath KeyPath { get; set; }
 
-    /// <summary>
-    /// Gets the string representation of the key path.
-    /// </summary>
-    public string Key
-    {
-        get => KeyPath.Path;
-        set => KeyPath = new ConfigPath(value);
-    }
+        /// <summary>
+        /// Gets or sets the key as a string. Setting this updates <see cref="KeyPath"/>.
+        /// </summary>
+        public string Key
+        {
+            get => KeyPath.Path;
+            set => KeyPath = new ConfigPath(value);
+        }
 
         /// <summary>
-        /// Gets the message describing the violation.
+        /// Gets or sets the message describing the violation.
         /// </summary>
         public string Message { get; set; } = string.Empty;
 
         /// <summary>
-        /// Gets a value indicating whether the key is missing.
+        /// Gets or sets a value indicating whether the key is missing.
         /// </summary>
         public bool IsMissing { get; set; }
 
         /// <summary>
-        /// Gets a value indicating whether the key is unknown (present in config but not in schema).
+        /// Gets or sets a value indicating whether the key is unknown (present in config but not in schema).
         /// </summary>
         public bool IsUnknown { get; set; }
 
         /// <summary>
-        /// Gets a value indicating whether this is a casing conflict (keys differing only by casing).
+        /// Gets or sets a value indicating whether this is a casing conflict (keys differing only by casing).
         /// </summary>
         public bool IsCasingConflict { get; set; }
 
         /// <summary>
-        /// Gets a value indicating whether the violation is related to sensitive data (e.g., connection strings with passwords).
+        /// Gets or sets a value indicating whether the violation is related to sensitive data (e.g., connection strings with passwords).
         /// </summary>
         public bool IsSensitive { get; set; }
     }
