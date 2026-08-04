@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 
 namespace AppsettingsDiff;
 
@@ -380,15 +381,18 @@ public class ConfigDiffer
     /// <param name="basePath">Optional identifier for the baseline (e.g. a file path) recorded in the result.</param>
     /// <param name="targetPath">Optional identifier for the target (e.g. a file path) recorded in the result.</param>
     /// <param name="options">Optional configuration options for the diff operation.</param>
+    /// <param name="depth">Internal recursion depth counter. Do not set manually.</param>
     /// <returns>A <see cref="DiffResult"/> describing the differences.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="baseline"/> or <paramref name="target"/> is <c>null</c>.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the maximum recursion depth is exceeded.</exception>
     public DiffResult Diff(
         FlatConfig baseline,
         FlatConfig target,
         IEnumerable<string>? ignoreKeys = null,
         string? basePath = null,
         string? targetPath = null,
-        ConfigDiffOptions? options = null)
+        ConfigDiffOptions? options = null,
+        int depth = 0)
     {
         ArgumentNullException.ThrowIfNull(baseline);
         ArgumentNullException.ThrowIfNull(target);
