@@ -1,11 +1,8 @@
-// Copyright (c) 2024. All rights reserved.
-#nullable enable
-#pragma warning disable CS1591
-
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace AppsettingsDiff
 {
@@ -25,7 +22,20 @@ namespace AppsettingsDiff
             if (!File.Exists(path))
                 throw new FileNotFoundException("YAML file not found", path);
 
-            return Parse(File.ReadAllText(path));
+            // Read raw bytes to reliably detect and strip a UTF-8 BOM.
+            byte[] rawBytes = File.ReadAllBytes(path);
+            // Strip UTF-8 BOM if present.
+            if (rawBytes.Length >= 3 && rawBytes[0] == 0xEF && rawBytes[1] == 0xBB && rawBytes[2] == 0xBF)
+            {
+                rawBytes = rawBytes[3..];
+            }
+
+            // Decode using UTF-8 (without BOM) and normalize line endings.
+            string content = Encoding.UTF8.GetString(rawBytes)
+                .Replace("\r\n", "\n")
+                .Replace("\r", "\n");
+
+            return Parse(content);
         }
 
         /// <summary>
