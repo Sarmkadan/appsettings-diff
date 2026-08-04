@@ -145,6 +145,8 @@ namespace AppsettingsDiff
         /// Removes a previously recorded empty entry for a key that turned out to be a section
         /// (a parent of nested keys or list items), matching how JSON configuration is flattened.
         /// </summary>
+        /// <param name="result">The dictionary containing the YAML configuration.</param>
+        /// <param name="parentKey">The parent key to remove the empty entry for.</param>
         private static void RemoveSectionEntry(Dictionary<string, string> result, string parentKey)
         {
             if (parentKey.Length > 0 &&
