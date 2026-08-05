@@ -1,0 +1,1 @@
+Fixed bug where file reads were not using UTF8 encoding
