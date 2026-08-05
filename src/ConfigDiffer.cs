@@ -572,16 +572,13 @@ public class ConfigDiffer
     private bool AreValuesEqualAsBlobs(string key, string? value1, string? value2, int? maxDepth)
     {
         // If either value is null, use standard comparison
-        if (value1 == null || value2 == null) { return value1 == value2; } else { return value1.Equals(value2, StringComparison.InvariantCulture); }
+        if (value1 == null || value2 == null)
+        {
             return value1 == value2;
+        }
 
-        // If max depth is not set or we're within the limit, use timing-safe comparison
-        if (maxDepth == null || maxDepth <= 0)
-            return TimingSafeComparer.FixedTimeEquals(value1, value2);
-
-        // If we exceed max depth, compare as opaque blobs
-        // Only report a difference if the entire subtree changed
-        return TimingSafeComparer.FixedTimeEquals(value1, value2);
+        // For blobs, we use Ordinal comparison
+        return TimingSafeComparer.FixedTimeEquals(value1, value2, StringComparison.Ordinal);
     }
 
     private bool ShouldIgnore(string key, HashSet<string> ignoreSet, ConfigDiffOptions options)
@@ -609,12 +606,19 @@ public class ConfigDiffer
     private bool AreValuesEqual(string? value1, string? value2, ConfigDiffOptions options)
     {
         // If either value is null, use standard comparison
-        if (value1 == null || value2 == null) { return value1 == value2; } else { return value1.Equals(value2, StringComparison.InvariantCulture); }
+        if (value1 == null || value2 == null)
+        {
             return value1 == value2;
+        }
+
+        // Use OrdinalIgnoreCase for consistent comparison
+        var comparison = options.CaseSensitiveKeys
+            ? StringComparison.Ordinal
+            : StringComparison.OrdinalIgnoreCase;
 
         // If unordered array comparison is not enabled, use timing-safe comparison
         if (!options.UnorderedArrays)
-            return TimingSafeComparer.FixedTimeEquals(value1, value2);
+            return TimingSafeComparer.FixedTimeEquals(value1, value2, comparison);
 
         // Check if both values represent arrays (contain array index notation like [0], [1], etc.)
         if (IsArrayValue(value1) && IsArrayValue(value2))
@@ -624,8 +628,8 @@ public class ConfigDiffer
             var arrayKey2 = ExtractArrayKey(value2);
 
             // If they're not the same array, use timing-safe comparison
-            if (!string.Equals(arrayKey1, arrayKey2, StringComparison.OrdinalIgnoreCase))
-                return TimingSafeComparer.FixedTimeEquals(value1, value2);
+            if (!string.Equals(arrayKey1, arrayKey2, comparison))
+                return TimingSafeComparer.FixedTimeEquals(value1, value2, comparison);
 
             // Extract all values for each array
             var values1 = ExtractArrayValues(value1);
@@ -636,7 +640,7 @@ public class ConfigDiffer
         }
 
         // Timing-safe comparison for non-arrays or mixed types
-        return TimingSafeComparer.FixedTimeEquals(value1, value2);
+        return TimingSafeComparer.FixedTimeEquals(value1, value2, comparison);
     }
 
     /// <summary>
@@ -746,7 +750,7 @@ public class ConfigDiffer
         int capacity = 1;
         foreach (char c in arrayText) { if (c == '\n') capacity++; }
 
-        var values = new HashSet<string>(capacity, StringComparer.Ordinal);
+        var values = new HashSet<string>(capacity, StringComparer.OrdinalIgnoreCase);
 
         // Split by newlines to get individual array elements
         var lines = arrayText.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
