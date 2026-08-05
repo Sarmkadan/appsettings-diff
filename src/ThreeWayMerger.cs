@@ -125,11 +125,11 @@ public static class ThreeWayMerger
         ArgumentNullException.ThrowIfNull(theirs);
         ArgumentNullException.ThrowIfNull(strategy);
 
-        var merged = new Dictionary<string, string>(StringComparer.Ordinal);
+        var merged = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var conflicts = new List<MergeConflict>();
 
         // Collect all unique keys from all three configurations
-        var allKeys = new HashSet<string>(StringComparer.Ordinal);
+        var allKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         allKeys.UnionWith(baseConfig.Keys);
         allKeys.UnionWith(ours.Keys);
         allKeys.UnionWith(theirs.Keys);
@@ -138,7 +138,7 @@ public static class ThreeWayMerger
         // by their array root ("Section"). These are merged as whole units below instead of
         // being merged key‑by‑key, because index shifts (insert/delete/reorder) on one side
         // make positional keys line up with unrelated elements on the other side.
-        var arrayGroups = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        var arrayGroups = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var key in allKeys)
         {
             var arrayRoot = DetectArrayRoot(key);
@@ -154,7 +154,7 @@ public static class ThreeWayMerger
             groupKeys.Add(key);
         }
 
-        var arrayKeys = new HashSet<string>(arrayGroups.Values.SelectMany(k => k), StringComparer.Ordinal);
+        var arrayKeys = new HashSet<string>(arrayGroups.Values.SelectMany(k => k), StringComparer.OrdinalIgnoreCase);
 
         foreach (var (arrayRoot, groupKeys) in arrayGroups)
         {
@@ -370,7 +370,7 @@ public static class ThreeWayMerger
     /// <returns>A dictionary containing only the entries from <paramref name="config"/> whose key is in <paramref name="keys"/>.</returns>
     private static Dictionary<string, string> Slice(Dictionary<string, string> config, List<string> keys)
     {
-        var slice = new Dictionary<string, string>(StringComparer.Ordinal);
+        var slice = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var key in keys)
         {
             if (config.TryGetValue(key, out var value))
@@ -388,7 +388,7 @@ public static class ThreeWayMerger
     /// <returns><c>true</c> if both slices have identical keys and values; otherwise <c>false</c>.</returns>
     private static bool SliceEquals(Dictionary<string, string> left, Dictionary<string, string> right) =>
         left.Count == right.Count &&
-        left.All(kv => right.TryGetValue(kv.Key, out var value) && TimingSafeComparer.FixedTimeEquals(kv.Value, value));
+        left.All(kv => right.TryGetValue(kv.Key, out var value) && TimingSafeComparer.FixedTimeEquals(kv.Value, value, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Writes every entry of an array slice into the merged dictionary.
@@ -409,5 +409,5 @@ public static class ThreeWayMerger
     private static string? SerializeSlice(Dictionary<string, string> slice) =>
         slice.Count == 0
             ? null
-            : string.Join(';', slice.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => $"{kv.Key}={kv.Value}"));
+            : string.Join(';', slice.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase).Select(kv => $"{kv.Key}={kv.Value}"));
 }
