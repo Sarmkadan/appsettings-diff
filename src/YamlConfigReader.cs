@@ -17,6 +17,7 @@ namespace AppsettingsDiff
         /// <param name="path">The path to the YAML file.</param>
         /// <returns>A dictionary representing the YAML configuration.</returns>
         /// <exception cref="FileNotFoundException">Thrown if the YAML file is not found.</exception>
+        /// <exception cref="FormatException">Thrown when the YAML file contains malformed constructs such as duplicate anchors, unresolvable or recursive aliases.</exception>
         public static Dictionary<string, string> ReadFile(string path)
         {
             if (!File.Exists(path))
@@ -35,7 +36,15 @@ namespace AppsettingsDiff
                 .Replace("\r\n", "\n")
                 .Replace("\r", "\n");
 
-            return Parse(content);
+            try
+            {
+                return Parse(content);
+            }
+            catch (NotSupportedException ex)
+            {
+                // Re‑throw as a clearer format exception that includes the file name.
+                throw new FormatException($"Malformed YAML in file '{path}': {ex.Message}", ex);
+            }
         }
 
         /// <summary>
