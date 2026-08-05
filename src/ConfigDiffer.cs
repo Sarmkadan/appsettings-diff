@@ -32,7 +32,7 @@ public record ConfigDiffOptions
     /// <summary>
     /// Gets a value indicating whether key comparisons should be case‑sensitive.
     /// </summary>
-    public bool CaseSensitiveKeys { get; init; }
+    public bool CaseSensitiveKeys { get; init; } = true;
 
     /// <summary>
     /// Gets additional key patterns to ignore during comparison.
@@ -609,6 +609,12 @@ public class ConfigDiffer
         if (value1 == null || value2 == null)
         {
             return value1 == value2;
+        }
+
+        // Normalize booleans to lowercase for case-insensitive comparison
+        if (DetectJsonType(value1) == "boolean" && DetectJsonType(value2) == "boolean")
+        {
+            return TimingSafeComparer.FixedTimeEquals(value1.ToLowerInvariant(), value2.ToLowerInvariant());
         }
 
         // Use OrdinalIgnoreCase for consistent comparison
