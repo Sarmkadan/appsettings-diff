@@ -161,6 +161,10 @@ public static class Program
         return await rootCommand.InvokeAsync(args);
     }
 
+    /// <summary>
+    /// Writes help information to the console.
+    /// </summary>
+    /// <param name="rootCommand">The root command containing help information.</param>
     private static void ShowHelp(RootCommand rootCommand)
     {
         var console = Console.Out;
@@ -182,6 +186,11 @@ public static class Program
         WriteOptionDescriptions(console, rootCommand);
     }
 
+    /// <summary>
+    /// Writes option and command descriptions to the console.
+    /// </summary>
+    /// <param name="writer">The <see cref="TextWriter"/> to write to.</param>
+    /// <param name="command">The <see cref="RootCommand"/> to extract information from.</param>
     private static void WriteOptionDescriptions(TextWriter writer, RootCommand command)
     {
         foreach (var option in command.Options)
@@ -203,6 +212,12 @@ public static class Program
 
     private sealed record OutputOptions(string? Format, bool ShowSecrets, bool MaskSensitive, string[] IgnorePatterns, FileInfo? SensitivePatternsFile, FailOn FailOn, FileInfo? SchemaFile, int? MaxDepth, string? PathPrefix, bool NoColor);
 
+    /// <summary>
+    /// Executes the specified action and handles expected exceptions by printing error messages to the error console.
+    /// </summary>
+    /// <param name="context">The <see cref="InvocationContext"/> for the current command invocation.</param>
+    /// <param name="action">The action to execute, which should return an exit code.</param>
+    /// <returns>The exit code returned by the action, or 2 if an exception occurred.</returns>
     private static int Execute(InvocationContext context, Func<int> action)
     {
         try
@@ -218,6 +233,13 @@ public static class Program
         }
     }
 
+    /// <summary>
+    /// Runs a diff between two configuration files.
+    /// </summary>
+    /// <param name="baseFile">The base configuration file.</param>
+    /// <param name="targetFile">The target configuration file.</param>
+    /// <param name="options">The <see cref="OutputOptions"/> for the diff operation.</param>
+    /// <returns>The exit code for the operation.</returns>
     private static int RunFileDiff(FileInfo baseFile, FileInfo targetFile, OutputOptions options)
     {
         ArgumentNullException.ThrowIfNull(baseFile);
@@ -253,6 +275,13 @@ public static class Program
         return ShouldFail(result, schemaViolations, options.FailOn) ? 1 : 0;
     }
 
+    /// <summary>
+    /// Determines if the diff operation should fail based on the specified failure criteria.
+    /// </summary>
+    /// <param name="result">The <see cref="DiffResult"/> of the operation.</param>
+    /// <param name="schemaViolations">The list of <see cref="SchemaViolation"/>s found.</param>
+    /// <param name="failOn">The <see cref="FailOn"/> criteria.</param>
+    /// <returns>True if the operation should fail; otherwise, false.</returns>
     private static bool ShouldFail(DiffResult result, List<SchemaViolation> schemaViolations, FailOn failOn)
     {
         if (failOn == FailOn.None) return false;
@@ -275,6 +304,13 @@ public static class Program
         return false;
     }
 
+    /// <summary>
+    /// Runs a diff across configuration files in a directory for multiple environments.
+    /// </summary>
+    /// <param name="dir">The directory containing configuration files.</param>
+    /// <param name="envs">The environments to compare.</param>
+    /// <param name="options">The <see cref="OutputOptions"/> for the diff operation.</param>
+    /// <returns>The exit code for the operation.</returns>
     private static int RunDirectoryDiff(DirectoryInfo? dir, string[]? envs, OutputOptions options)
     {
         if (dir is null)
@@ -327,37 +363,46 @@ public static class Program
         return anyFail ? 1 : 0;
     }
 
-private static void WriteResult(DiffResult result, List<SchemaViolation> schemaViolations, SensitiveKeyDetector detector, OutputOptions options)
-{
-    var writer = DiffReportWriterFactory.Create(options.Format, detector, options.ShowSecrets, options.MaskSensitive);
-    var formatWriter = DiffReportWriterRegistry.GetFormatWriter(options.Format);
+    /// <summary>
+    /// Writes the diff result and schema violations to the output.
+    /// </summary>
+    /// <param name="result">The <see cref="DiffResult"/> to write.</param>
+    /// <param name="schemaViolations">The list of <see cref="SchemaViolation"/>s to write.</param>
+    /// <param name="detector">The <see cref="SensitiveKeyDetector"/> used for redaction.</param>
+    /// <param name="options">The <see cref="OutputOptions"/>.</param>
+    private static void WriteResult(DiffResult result, List<SchemaViolation> schemaViolations, SensitiveKeyDetector detector, OutputOptions options)
+    {
+        var writer = DiffReportWriterFactory.Create(options.Format, detector, options.ShowSecrets, options.MaskSensitive);
+        var formatWriter = DiffReportWriterRegistry.GetFormatWriter(options.Format);
 
-    if (formatWriter != null)
-    {
-        formatWriter(writer, result, schemaViolations, options.NoColor);
-    }
-    else
-    {
-        // Fallback to console output if format writer not found
-        writer.WriteConsole(result, options.NoColor);
-    }
-
-    if (schemaViolations.Count > 0)
-    {
-        Console.WriteLine();
-        Console.WriteLine(Messages.SchemaViolationsHeader);
-        foreach (var v in schemaViolations)
+        if (formatWriter != null)
         {
-            Console.WriteLine($"- {v.Key}: {v.Message}");
+            formatWriter(writer, result, schemaViolations, options.NoColor);
+        }
+        else
+        {
+            // Fallback to console output if format writer not found
+            writer.WriteConsole(result, options.NoColor);
+        }
+
+        if (schemaViolations.Count > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine(Messages.SchemaViolationsHeader);
+            foreach (var v in schemaViolations)
+            {
+                Console.WriteLine($"- {v.Key}: {v.Message}");
+            }
         }
     }
-}
 
 
     /// <summary>
     /// Loads a configuration file (JSON, YAML, or .env) into a flat key-value dictionary
     /// using the same "Section:Key" convention as ASP.NET Core configuration.
     /// </summary>
+    /// <param name="path">The path to the configuration file.</param>
+    /// <returns>A dictionary containing the configuration keys and values.</returns>
     private static Dictionary<string, string> LoadConfigFile(string path)
     {
         var extension = Path.GetExtension(path);
@@ -407,6 +452,9 @@ private static void WriteResult(DiffResult result, List<SchemaViolation> schemaV
     /// Builds the effective configuration for an environment: the shared appsettings file
     /// (if present) overlaid with the environment-specific appsettings.{env} file.
     /// </summary>
+    /// <param name="dir">The <see cref="DirectoryInfo"/> containing configuration files.</param>
+    /// <param name="environment">The name of the environment.</param>
+    /// <returns>A dictionary containing the effective configuration.</returns>
     private static Dictionary<string, string> LoadEnvironmentConfig(DirectoryInfo dir, string environment)
     {
         var envFile = FindConfigFile(dir, $"appsettings.{environment}")
@@ -423,6 +471,12 @@ private static void WriteResult(DiffResult result, List<SchemaViolation> schemaV
         return effective;
     }
 
+    /// <summary>
+    /// Finds a configuration file by name in the specified directory, checking supported extensions.
+    /// </summary>
+    /// <param name="dir">The <see cref="DirectoryInfo"/> to search in.</param>
+    /// <param name="baseName">The base name of the configuration file.</param>
+    /// <returns>The path to the file if found; otherwise, null.</returns>
     private static string? FindConfigFile(DirectoryInfo dir, string baseName)
     {
         foreach (var extension in SupportedExtensions)
@@ -435,6 +489,11 @@ private static void WriteResult(DiffResult result, List<SchemaViolation> schemaV
         return null;
     }
 
+    /// <summary>
+    /// Converts a flat key-value dictionary to a <see cref="FlatConfig"/>.
+    /// </summary>
+    /// <param name="values">The dictionary of configuration values.</param>
+    /// <returns>A <see cref="FlatConfig"/> instance.</returns>
     private static FlatConfig ToFlatConfig(Dictionary<string, string> values)
     {
         var config = new FlatConfig();
