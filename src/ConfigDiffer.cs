@@ -72,10 +72,19 @@ public class SensitiveKeyDetector
     /// Initializes a new instance of <see cref="SensitiveKeyDetector"/> with custom patterns.
     /// </summary>
     /// <param name="customPatterns">Custom sensitive patterns to use.</param>
+    /// <summary>
+    /// Initializes a new instance of <see cref="SensitiveKeyDetector"/> with custom patterns.
+    /// </summary>
+    /// <param name="customPatterns">Custom sensitive patterns to use.</param>
     public SensitiveKeyDetector(IEnumerable<string> customPatterns) : this(customPatterns, caseSensitive: false)
     {
     }
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="SensitiveKeyDetector"/> with custom patterns and case sensitivity.
+    /// </summary>
+    /// <param name="customPatterns">Custom sensitive patterns to use.</param>
+    /// <param name="caseSensitive">Whether pattern matching should be case‑sensitive.</param>
     /// <summary>
     /// Initializes a new instance of <see cref="SensitiveKeyDetector"/> with custom patterns and case sensitivity.
     /// </summary>
@@ -87,6 +96,10 @@ public class SensitiveKeyDetector
         _caseSensitive = caseSensitive;
     }
 
+    /// <summary>
+    /// Loads the default sensitive patterns.
+    /// </summary>
+    /// <returns>An array of default sensitive patterns.</returns>
     /// <summary>
     /// Loads the default sensitive patterns.
     /// </summary>
@@ -144,6 +157,10 @@ public class SensitiveKeyDetector
         return new SensitiveKeyDetector(patterns);
     }
 
+    /// <summary>
+    /// Returns the loaded sensitive patterns.
+    /// </summary>
+    /// <returns>An array of sensitive patterns.</returns>
     /// <summary>
     /// Returns the loaded sensitive patterns.
     /// </summary>
