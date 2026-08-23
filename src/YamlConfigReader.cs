@@ -23,22 +23,12 @@ namespace AppsettingsDiff
             if (!File.Exists(path))
                 throw new FileNotFoundException("YAML file not found", path);
 
-            // Read raw bytes to reliably detect and strip a UTF-8 BOM.
-            byte[] rawBytes = File.ReadAllBytes(path);
-            // Strip UTF-8 BOM if present.
-            if (rawBytes.Length >= 3 && rawBytes[0] == 0xEF && rawBytes[1] == 0xBB && rawBytes[2] == 0xBF)
-            {
-                rawBytes = rawBytes[3..];
-            }
-
-            // Decode using UTF-8 (without BOM) and normalize line endings.
-            string content = Encoding.UTF8.GetString(rawBytes)
-                .Replace("\r\n", "\n")
-                .Replace("\r", "\n");
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
 
             try
             {
-                return Parse(content);
+                return Parse(reader);
             }
             catch (NotSupportedException ex)
             {
@@ -58,23 +48,43 @@ namespace AppsettingsDiff
         /// <exception cref="FormatException">Thrown if a non-empty line is neither a mapping nor a list item.</exception>
         public static Dictionary<string, string> Parse(string yamlContent)
         {
-            ArgumentNullException.ThrowIfNull(yamlContent);
+            if (yamlContent == null) throw new ArgumentNullException(nameof(yamlContent));
+            using var reader = new StringReader(yamlContent);
+            return Parse(reader);
+        }
 
-            var lines = yamlContent.Split('\n', StringSplitOptions.None);
+        /// <summary>
+        /// Parses a YAML configuration from the specified TextReader.
+        /// Nested mappings are flattened to "Section:Key" paths and list items to "Key[index]".
+        /// </summary>
+        /// <param name="reader">The TextReader to read the YAML configuration from.</param>
+        /// <returns>A dictionary representing the YAML configuration.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="reader"/> is <see langword="null"/>.</exception>
+        /// <exception cref="NotSupportedException">Thrown if the YAML uses anchors, aliases or block scalars.</exception>
+        /// <exception cref="FormatException">Thrown if a non-empty line is neither a mapping nor a list item.</exception>
+        public static Dictionary<string, string> Parse(TextReader reader)
+        {
+            if (reader == null)
+                throw new ArgumentNullException(nameof(reader));
+
             var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var path = new List<string>();
             int listIndex = -1;
             var keysAtEachLevel = new Stack<HashSet<string>>();
             keysAtEachLevel.Push(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
 
-            for (int i = 0; i < lines.Length; i++)
+            string line;
+            while ((line = reader.ReadLine()) != null)
             {
-                var line = lines[i].TrimEnd();
-                if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith('#'))
+                // We have the line without the line ending (because ReadLine removes it).
+                // Now we process the line as in the original algorithm.
+
+                var trimmedLine = line.TrimEnd();
+                if (string.IsNullOrWhiteSpace(trimmedLine) || trimmedLine.TrimStart().StartsWith('#'))
                     continue;
 
-                int indent = GetIndentLevel(line);
-                string content = line.TrimStart();
+                int indent = GetIndentLevel(trimmedLine);
+                string content = trimmedLine.TrimStart();
 
                 if (content == "-" || content.StartsWith("- ", StringComparison.Ordinal))
                 {
