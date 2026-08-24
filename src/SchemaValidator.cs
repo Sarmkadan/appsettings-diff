@@ -248,6 +248,13 @@ namespace AppsettingsDiff
             var json = JsonSerializer.Serialize(this, options);
             File.WriteAllText(path, json);
         }
+
+        /// <summary>
+        /// Returns a concise, informative representation of the schema.
+        /// </summary>
+        /// <returns>A string summarizing the number of required keys and type hints.</returns>
+        public override string ToString()
+            => $"ConfigSchema {{ RequiredKeys = {RequiredKeys.Count}, TypeHints = {TypeHints.Count} }}";
     }
 
     /// <summary>
