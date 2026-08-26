@@ -34,6 +34,14 @@ public sealed class JsonPatchOperation
     public string? From { get; set; }
 
     /// <summary>
+    /// Returns a concise, informative string representation of the operation.
+    /// </summary>
+    public override string ToString()
+    {
+        return $"JsonPatchOperation {{ Op = {Op}, Path = {Path}, Value = {Value}, From = {From} }}";
+    }
+
+    /// <summary>
     /// Creates a JSON Pointer path from a configuration key.
     /// Configuration keys use ':' as a section separator (e.g., "Section:Subsection:Key").
     /// This method converts such keys to JSON Pointer format by:
