@@ -67,6 +67,7 @@ public static class Program
         var maxDepthOption = new Option<int?>("--max-depth", "Maximum depth to compare nested structures (0 = no limit)");
         var pathOption = new Option<string?>("--path", "Only compare keys under the given key-path prefix (e.g. Logging:LogLevel)");
         var noColorOption = new Option<bool>("--no-color", "Disable ANSI color output");
+        var verboseOption = new Option<bool>("--verbose", "Write diagnostic information to standard error");
 
         var rootCommand = new RootCommand("Appsettings Diff Tool")
         {
@@ -90,6 +91,7 @@ public static class Program
         diffCommand.AddOption(maxDepthOption);
         diffCommand.AddOption(pathOption);
         diffCommand.AddOption(noColorOption);
+        diffCommand.AddOption(verboseOption);
 
         // Mode 2: --dir --envs
         var dirCommand = new Command("dir", "Compare configuration files in a directory")
@@ -108,6 +110,7 @@ public static class Program
         dirCommand.AddOption(maxDepthOption);
         dirCommand.AddOption(pathOption);
         dirCommand.AddOption(noColorOption);
+        dirCommand.AddOption(verboseOption);
 
         rootCommand.AddCommand(diffCommand);
         rootCommand.AddCommand(dirCommand);
@@ -125,6 +128,7 @@ public static class Program
         rootCommand.AddOption(maxDepthOption);
         rootCommand.AddOption(pathOption);
         rootCommand.AddOption(noColorOption);
+        rootCommand.AddOption(verboseOption);
 
         rootCommand.SetHandler((InvocationContext context) =>
         {
@@ -156,7 +160,8 @@ public static class Program
             SchemaFile: context.ParseResult.GetValueForOption(schemaOption),
             MaxDepth: context.ParseResult.GetValueForOption(maxDepthOption),
             PathPrefix: context.ParseResult.GetValueForOption(pathOption),
-            NoColor: context.ParseResult.GetValueForOption(noColorOption));
+            NoColor: context.ParseResult.GetValueForOption(noColorOption),
+            Verbose: context.ParseResult.GetValueForOption(verboseOption));
 
         return await rootCommand.InvokeAsync(args);
     }
@@ -210,7 +215,7 @@ public static class Program
         }
     }
 
-    private sealed record OutputOptions(string? Format, bool ShowSecrets, bool MaskSensitive, string[] IgnorePatterns, FileInfo? SensitivePatternsFile, FailOn FailOn, FileInfo? SchemaFile, int? MaxDepth, string? PathPrefix, bool NoColor);
+    private sealed record OutputOptions(string? Format, bool ShowSecrets, bool MaskSensitive, string[] IgnorePatterns, FileInfo? SensitivePatternsFile, FailOn FailOn, FileInfo? SchemaFile, int? MaxDepth, string? PathPrefix, bool NoColor, bool Verbose);
 
     /// <summary>
     /// Executes the specified action and handles expected exceptions by printing error messages to the error console.
@@ -245,8 +250,13 @@ public static class Program
         ArgumentNullException.ThrowIfNull(baseFile);
         ArgumentNullException.ThrowIfNull(targetFile);
 
+        WriteDiagnostic(options, "resolved", ("base", baseFile.FullName), ("target", targetFile.FullName));
+        WriteDiagnostic(options, "formats", ("base", GetFileFormat(baseFile.FullName)), ("target", GetFileFormat(targetFile.FullName)));
+
         var baseline = ToFlatConfig(LoadConfigFile(baseFile.FullName));
         var target = ToFlatConfig(LoadConfigFile(targetFile.FullName));
+        WriteDiagnostic(options, "keys", ("base", baseline.Values.Count), ("target", target.Values.Count));
+        WriteOutputDiagnostics(options);
 
         SensitiveKeyDetector detector;
         if (options.SensitivePatternsFile != null && options.SensitivePatternsFile.Exists)
@@ -272,7 +282,9 @@ public static class Program
 
         WriteResult(result, schemaViolations, detector, options);
 
-        return ShouldFail(result, schemaViolations, options.FailOn) ? 1 : 0;
+        var exitCode = ShouldFail(result, schemaViolations, options.FailOn) ? 1 : 0;
+        WriteFinalDiagnostic(options, result, exitCode);
+        return exitCode;
     }
 
     /// <summary>
@@ -323,6 +335,9 @@ public static class Program
         if (environments.Length < 2)
             throw new ArgumentException(Messages.InsufficientEnvironments);
 
+        WriteDiagnostic(options, "resolved", ("directory", dir.FullName), ("environments", environments));
+        WriteOutputDiagnostics(options);
+
         SensitiveKeyDetector detector;
         if (options.SensitivePatternsFile != null && options.SensitivePatternsFile.Exists)
         {
@@ -337,12 +352,16 @@ public static class Program
         var differOptions = new ConfigDiffOptions { MaxDepth = options.MaxDepth, PathPrefix = options.PathPrefix, IgnorePaths = options.IgnorePatterns, CaseSensitiveKeys = false, UnorderedArrays = false };
 
         var baselineEnv = environments[0];
-        var baseline = ToFlatConfig(LoadEnvironmentConfig(dir, baselineEnv));
+        var baseline = ToFlatConfig(LoadEnvironmentConfig(dir, baselineEnv, options, "base"));
 
         var anyFail = false;
+        var totalAdded = 0;
+        var totalRemoved = 0;
+        var totalChanged = 0;
         foreach (var env in environments.Skip(1))
         {
-            var target = ToFlatConfig(LoadEnvironmentConfig(dir, env));
+            var target = ToFlatConfig(LoadEnvironmentConfig(dir, env, options, "target"));
+            WriteDiagnostic(options, "keys", ("base", baseline.Values.Count), ("target", target.Values.Count));
             var result = differ.Diff(baseline, target, options.IgnorePatterns, baselineEnv, env, differOptions);
 
             var schemaViolations = new List<SchemaViolation>();
@@ -354,13 +373,20 @@ public static class Program
             }
 
             WriteResult(result, schemaViolations, detector, options);
-            if (ShouldFail(result, schemaViolations, options.FailOn))
+            var comparisonExitCode = ShouldFail(result, schemaViolations, options.FailOn) ? 1 : 0;
+            totalAdded += result.CountOf(DiffKind.Added);
+            totalRemoved += result.CountOf(DiffKind.Removed);
+            totalChanged += result.CountOf(DiffKind.Changed);
+            if (comparisonExitCode != 0)
             {
                 anyFail = true;
             }
         }
 
-        return anyFail ? 1 : 0;
+        var exitCode = anyFail ? 1 : 0;
+        WriteDiagnostic(options, "result", ("added", totalAdded), ("removed", totalRemoved),
+            ("changed", totalChanged), ("exitCode", exitCode));
+        return exitCode;
     }
 
     /// <summary>
@@ -454,13 +480,20 @@ public static class Program
     /// </summary>
     /// <param name="dir">The <see cref="DirectoryInfo"/> containing configuration files.</param>
     /// <param name="environment">The name of the environment.</param>
+    /// <param name="options">The output options controlling diagnostics.</param>
+    /// <param name="side">The comparison side being loaded.</param>
     /// <returns>A dictionary containing the effective configuration.</returns>
-    private static Dictionary<string, string> LoadEnvironmentConfig(DirectoryInfo dir, string environment)
+    private static Dictionary<string, string> LoadEnvironmentConfig(DirectoryInfo dir, string environment, OutputOptions options, string side)
     {
         var envFile = FindConfigFile(dir, $"appsettings.{environment}")
             ?? throw new FileNotFoundException(Messages.FileNotFound(environment, dir.FullName));
 
         var sharedFile = FindConfigFile(dir, "appsettings");
+        WriteDiagnostic(options, "resolved", ("side", side), ("environment", environment),
+            ("shared", sharedFile ?? "none"), ("environmentFile", envFile));
+        WriteDiagnostic(options, "formats", ("side", side),
+            ("shared", sharedFile is null ? "none" : GetFileFormat(sharedFile)),
+            ("environment", GetFileFormat(envFile)));
         var effective = sharedFile is not null
             ? new Dictionary<string, string>(LoadConfigFile(sharedFile), StringComparer.OrdinalIgnoreCase)
             : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -469,6 +502,50 @@ public static class Program
             effective[key] = value;
 
         return effective;
+    }
+
+    private static string GetFileFormat(string path)
+    {
+        return Path.GetExtension(path).ToLowerInvariant() switch
+        {
+            ".yaml" or ".yml" => "yaml",
+            ".env" => "env",
+            _ => "json"
+        };
+    }
+
+    private static void WriteOutputDiagnostics(OutputOptions options)
+    {
+        WriteDiagnostic(options, "report", ("format", string.IsNullOrWhiteSpace(options.Format) ? "console" : options.Format));
+        WriteDiagnostic(options, "ignore", ("count", options.IgnorePatterns.Length), ("patterns", options.IgnorePatterns));
+    }
+
+    private static void WriteFinalDiagnostic(OutputOptions options, DiffResult result, int exitCode)
+    {
+        WriteDiagnostic(options, "result", ("added", result.CountOf(DiffKind.Added)),
+            ("removed", result.CountOf(DiffKind.Removed)), ("changed", result.CountOf(DiffKind.Changed)),
+            ("exitCode", exitCode));
+    }
+
+    private static void WriteDiagnostic(OutputOptions options, string step, params (string Key, object? Value)[] values)
+    {
+        if (!options.Verbose)
+            return;
+
+        var fields = values.Select(value => $"{value.Key}={FormatDiagnosticValue(value.Value)}");
+        Console.Error.WriteLine($"[appsettings-diff] step={step} {string.Join(' ', fields)}");
+    }
+
+    private static string FormatDiagnosticValue(object? value)
+    {
+        return value switch
+        {
+            null => "null",
+            string text when text.Length > 0 && text.All(c => !char.IsWhiteSpace(c) && c != '=' && c != '"') => text,
+            string text => JsonSerializer.Serialize(text),
+            string[] items => JsonSerializer.Serialize(items),
+            _ => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? "null"
+        };
     }
 
     /// <summary>
