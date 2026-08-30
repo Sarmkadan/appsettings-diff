@@ -29,15 +29,23 @@ public enum FailOn
 /// </summary>
 public static class Program
 {
+    private const int ExitSuccess = 0;
+    private const int ExitDifferencesFound = 1;
+    private const int ExitError = 2;
+    private const string StdinSentinel = "-";
+    private const string DirOptionName = "--dir";
+    private const string EnvsOptionName = "--envs";
+    private const string FailOnOptionName = "--fail-on";
+    private const string DefaultFormat = "console";
     private static readonly string[] SupportedExtensions = [".json", ".yaml", ".yml", ".env"];
 
     /// <summary>
     /// Runs the CLI.
     ///
     /// Exit codes:
-    /// 0 - Success: No differences or violations found
-    /// 1 - Failure: Differences or violations found according to --fail-on
-    /// 2 - Error: Bad arguments, missing files, or other errors
+    /// <see cref="ExitSuccess"/> - Success: No differences or violations found
+    /// <see cref="ExitDifferencesFound"/> - Failure: Differences or violations found according to <see cref="FailOnOptionName"/>
+    /// <see cref="ExitError"/> - Error: Bad arguments, missing files, or other errors
     /// </summary>
     /// <param name="args">Raw command-line arguments.</param>
     public static async Task<int> Main(string[] args)
@@ -51,18 +59,18 @@ public static class Program
             // Ignore if output is redirected to a file or pipe where setting encoding is not allowed.
         }
 
-        var baseArgument = new Argument<FileInfo>("base", "The base JSON/YAML file (use - to read from stdin)").ExistingOnly();
-        var targetArgument = new Argument<FileInfo>("target", "The target JSON/YAML file (use - to read from stdin)").ExistingOnly();
+        var baseArgument = new Argument<FileInfo>("base", $"The base JSON/YAML file (use {StdinSentinel} to read from stdin)").ExistingOnly();
+        var targetArgument = new Argument<FileInfo>("target", $"The target JSON/YAML file (use {StdinSentinel} to read from stdin)").ExistingOnly();
 
-        var dirOption = new Option<DirectoryInfo>("--dir", "The directory containing configuration files").ExistingOnly();
-        var envsOption = new Option<string[]>("--envs", "The environments to compare (comma-separated, e.g. Production,Staging)") { AllowMultipleArgumentsPerToken = true };
+        var dirOption = new Option<DirectoryInfo>(DirOptionName, "The directory containing configuration files").ExistingOnly();
+        var envsOption = new Option<string[]>(EnvsOptionName, "The environments to compare (comma-separated, e.g. Production,Staging)") { AllowMultipleArgumentsPerToken = true };
 
         var formatOption = new Option<string?>("--format", "Output format (" + string.Join(", ", DiffReportWriterRegistry.GetRegisteredFormats()) + ")");
         var showSecretsOption = new Option<bool>("--show-secrets", "Show sensitive keys");
         var maskSensitiveOption = new Option<bool>("--mask-sensitive", "Mask sensitive values with *** instead of showing [REDACTED]");
         var ignoreOption = new Option<string[]>("--ignore", "Glob patterns of keys to ignore") { AllowMultipleArgumentsPerToken = true };
         var sensitivePatternsOption = new Option<FileInfo?>("--sensitive-patterns", "File containing additional sensitive key patterns (one per line, # comments allowed)");
-        var failOnOption = new Option<FailOn>("--fail-on", "Which categories cause a non-zero exit code (missing|any|schema-violation)");
+        var failOnOption = new Option<FailOn>(FailOnOptionName, "Which categories cause a non-zero exit code (missing|any|schema-violation)");
         var schemaOption = new Option<FileInfo?>("--schema", "JSON schema file for validation").ExistingOnly();
         var maxDepthOption = new Option<int?>("--max-depth", "Maximum depth to compare nested structures (0 = no limit)");
         var pathOption = new Option<string?>("--path", "Only compare keys under the given key-path prefix (e.g. Logging:LogLevel)");
@@ -135,7 +143,7 @@ public static class Program
             if (args.Length == 0 || (args.Length == 1 && (args[0] == "--help" || args[0] == "-h")))
             {
                 ShowHelp(rootCommand);
-                context.ExitCode = 0;
+                context.ExitCode = ExitSuccess;
                 return;
             }
             HandleDiff(context);
@@ -180,12 +188,12 @@ public static class Program
         console.WriteLine("USAGE:");
         console.WriteLine("  appsettings-diff [OPTIONS] <base> <target>");
         console.WriteLine("  appsettings-diff diff [OPTIONS] <base> <target>");
-        console.WriteLine("  appsettings-diff dir [OPTIONS] --dir <DIRECTORY> --envs <ENV1,ENV2,...>");
+        console.WriteLine($"  appsettings-diff dir [OPTIONS] {DirOptionName} <DIRECTORY> {EnvsOptionName} <ENV1,ENV2,...>");
         console.WriteLine();
         console.WriteLine("EXIT CODES:");
-        console.WriteLine("  0  Success: No differences or violations found");
-        console.WriteLine("  1  Failure: Differences or violations found according to --fail-on");
-        console.WriteLine("  2  Error: Bad arguments, missing files, or other errors");
+        console.WriteLine($"  {ExitSuccess}  Success: No differences or violations found");
+        console.WriteLine($"  {ExitDifferencesFound}  Failure: Differences or violations found according to {FailOnOptionName}");
+        console.WriteLine($"  {ExitError}  Error: Bad arguments, missing files, or other errors");
         console.WriteLine();
         console.WriteLine("OPTIONS:");
         WriteOptionDescriptions(console, rootCommand);
@@ -222,7 +230,7 @@ public static class Program
     /// </summary>
     /// <param name="context">The <see cref="InvocationContext"/> for the current command invocation.</param>
     /// <param name="action">The action to execute, which should return an exit code.</param>
-    /// <returns>The exit code returned by the action, or 2 if an exception occurred.</returns>
+    /// <returns>The exit code returned by the action, or <see cref="ExitError"/> if an exception occurred.</returns>
     private static int Execute(InvocationContext context, Func<int> action)
     {
         try
@@ -234,7 +242,7 @@ public static class Program
             or System.Text.Json.JsonException or ArgumentException)
         {
             context.Console.Error.Write($"Error: {ex.Message}{Environment.NewLine}");
-            return 2;
+            return ExitError;
         }
     }
 
@@ -282,7 +290,7 @@ public static class Program
 
         WriteResult(result, schemaViolations, detector, options);
 
-        var exitCode = ShouldFail(result, schemaViolations, options.FailOn) ? 1 : 0;
+        var exitCode = ShouldFail(result, schemaViolations, options.FailOn) ? ExitDifferencesFound : ExitSuccess;
         WriteFinalDiagnostic(options, result, exitCode);
         return exitCode;
     }
@@ -373,17 +381,17 @@ public static class Program
             }
 
             WriteResult(result, schemaViolations, detector, options);
-            var comparisonExitCode = ShouldFail(result, schemaViolations, options.FailOn) ? 1 : 0;
+            var comparisonExitCode = ShouldFail(result, schemaViolations, options.FailOn) ? ExitDifferencesFound : ExitSuccess;
             totalAdded += result.CountOf(DiffKind.Added);
             totalRemoved += result.CountOf(DiffKind.Removed);
             totalChanged += result.CountOf(DiffKind.Changed);
-            if (comparisonExitCode != 0)
+            if (comparisonExitCode != ExitSuccess)
             {
                 anyFail = true;
             }
         }
 
-        var exitCode = anyFail ? 1 : 0;
+        var exitCode = anyFail ? ExitDifferencesFound : ExitSuccess;
         WriteDiagnostic(options, "result", ("added", totalAdded), ("removed", totalRemoved),
             ("changed", totalChanged), ("exitCode", exitCode));
         return exitCode;
@@ -516,7 +524,7 @@ public static class Program
 
     private static void WriteOutputDiagnostics(OutputOptions options)
     {
-        WriteDiagnostic(options, "report", ("format", string.IsNullOrWhiteSpace(options.Format) ? "console" : options.Format));
+        WriteDiagnostic(options, "report", ("format", string.IsNullOrWhiteSpace(options.Format) ? DefaultFormat : options.Format));
         WriteDiagnostic(options, "ignore", ("count", options.IgnorePatterns.Length), ("patterns", options.IgnorePatterns));
     }
 
