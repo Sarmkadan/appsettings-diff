@@ -121,6 +121,34 @@ namespace AppsettingsDiff
         }
 
         /// <summary>
+        /// Tests that leading whitespace does not prevent comment lines from being skipped.
+        /// </summary>
+        [Fact]
+        public void ReadFile_IndentedCommentLines_AreSkipped()
+        {
+            // Arrange
+            var envContent = "   # hash comment\n" +
+                            "\t; semicolon comment\n" +
+                            "KEY=value\n";
+            var envPath = Path.GetTempFileName();
+            File.WriteAllText(envPath, envContent);
+
+            try
+            {
+                // Act
+                var result = DotEnvReader.ReadFile(envPath);
+
+                // Assert
+                Assert.Single(result);
+                Assert.Equal("value", result["KEY"]);
+            }
+            finally
+            {
+                File.Delete(envPath);
+            }
+        }
+
+        /// <summary>
         /// Tests that blank lines are skipped.
         /// </summary>
         [Fact]
@@ -389,6 +417,7 @@ namespace AppsettingsDiff
 
                 // Assert - Should be case-insensitive, last one wins
                 Assert.Single(result);
+                Assert.Equal(StringComparer.OrdinalIgnoreCase, result.Comparer);
                 Assert.Equal("value3", result["key1"]);
                 Assert.Equal("value3", result["KEY1"]);
                 Assert.Equal("value3", result["Key1"]);
@@ -422,6 +451,32 @@ namespace AppsettingsDiff
                 Assert.Equal("value1", result["KEY1"]);
                 Assert.Equal("value2", result["KEY2"]);
                 Assert.Equal("value3", result["KEY3"]);
+            }
+            finally
+            {
+                File.Delete(envPath);
+            }
+        }
+
+        /// <summary>
+        /// Tests that an export prefix is recognized after surrounding line whitespace is trimmed.
+        /// </summary>
+        [Fact]
+        public void ReadFile_IndentedExportPrefix_IsRemoved()
+        {
+            // Arrange
+            var envContent = "   export   KEY = \"quoted value\"   \n";
+            var envPath = Path.GetTempFileName();
+            File.WriteAllText(envPath, envContent);
+
+            try
+            {
+                // Act
+                var result = DotEnvReader.ReadFile(envPath);
+
+                // Assert
+                Assert.Single(result);
+                Assert.Equal("quoted value", result["KEY"]);
             }
             finally
             {
