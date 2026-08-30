@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading;
 
@@ -50,144 +49,6 @@ public record ConfigDiffOptions
         PathPrefix = null;
         CaseSensitiveKeys = false;
         IgnorePaths = null;
-    }
-}
-
-/// <summary>
-/// Detects sensitive keys in configuration based on wildcard patterns.
-/// </summary>
-public class SensitiveKeyDetector
-{
-    private readonly string[] _sensitivePatterns;
-    private readonly bool _caseSensitive;
-
-    /// <summary>
-    /// Initializes a new instance of <see cref="SensitiveKeyDetector"/> with the default patterns.
-    /// </summary>
-    public SensitiveKeyDetector() : this(LoadDefaultPatterns(), caseSensitive: false)
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of <see cref="SensitiveKeyDetector"/> with custom patterns.
-    /// </summary>
-    /// <param name="customPatterns">Custom sensitive patterns to use.</param>
-    /// <summary>
-    /// Initializes a new instance of <see cref="SensitiveKeyDetector"/> with custom patterns.
-    /// </summary>
-    /// <param name="customPatterns">Custom sensitive patterns to use.</param>
-    public SensitiveKeyDetector(IEnumerable<string> customPatterns) : this(customPatterns, caseSensitive: false)
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of <see cref="SensitiveKeyDetector"/> with custom patterns and case sensitivity.
-    /// </summary>
-    /// <param name="customPatterns">Custom sensitive patterns to use.</param>
-    /// <param name="caseSensitive">Whether pattern matching should be case‑sensitive.</param>
-    /// <summary>
-    /// Initializes a new instance of <see cref="SensitiveKeyDetector"/> with custom patterns and case sensitivity.
-    /// </summary>
-    /// <param name="customPatterns">Custom sensitive patterns to use.</param>
-    /// <param name="caseSensitive">Whether pattern matching should be case‑sensitive.</param>
-    public SensitiveKeyDetector(IEnumerable<string> customPatterns, bool caseSensitive)
-    {
-        _sensitivePatterns = customPatterns?.ToArray() ?? Array.Empty<string>();
-        _caseSensitive = caseSensitive;
-    }
-
-    /// <summary>
-    /// Loads the default sensitive patterns.
-    /// </summary>
-    /// <returns>An array of default sensitive patterns.</returns>
-    /// <summary>
-    /// Loads the default sensitive patterns.
-    /// </summary>
-    /// <returns>An array of default sensitive patterns.</returns>
-    private static string[] LoadDefaultPatterns()
-    {
-        return [
-            "*secret*",
-            "*password*",
-            "*token*",
-            "*key*",
-            "*api*",
-            "*credential*",
-            "*connection*string*",
-            "*pwd*",
-            "*access*key*"
-        ];
-    }
-
-    /// <summary>
-    /// Loads sensitive patterns from a file (one wildcard pattern per line, <c>#</c> comments allowed) and combines them with the defaults.
-    /// </summary>
-    /// <param name="path">Path to the file containing custom patterns.</param>
-    /// <returns>A <see cref="SensitiveKeyDetector"/> configured with the combined patterns.</returns>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="path"/> is null, empty, or whitespace.</exception>
-    /// <exception cref="FileNotFoundException">Thrown when the specified file does not exist.</exception>
-    /// <exception cref="InvalidOperationException">Thrown when the file cannot be read.</exception>
-    public static SensitiveKeyDetector LoadWithCustomPatterns(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            throw new ArgumentException("Path cannot be null or empty.", nameof(path));
-
-        if (!File.Exists(path))
-            throw new FileNotFoundException($"Custom patterns file not found: {path}");
-
-        var patterns = new List<string>(LoadDefaultPatterns());
-
-        try
-        {
-            var lines = File.ReadAllLines(path);
-            foreach (var line in lines)
-            {
-                var trimmedLine = line.Trim();
-                if (string.IsNullOrEmpty(trimmedLine) || trimmedLine.StartsWith('#'))
-                    continue;
-
-                patterns.Add(trimmedLine);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            throw new InvalidOperationException($"Failed to read custom patterns file: {ex.Message}", ex);
-        }
-
-        return new SensitiveKeyDetector(patterns);
-    }
-
-    /// <summary>
-    /// Returns the loaded sensitive patterns.
-    /// </summary>
-    /// <returns>An array of sensitive patterns.</returns>
-    /// <summary>
-    /// Returns the loaded sensitive patterns.
-    /// </summary>
-    /// <returns>An array of sensitive patterns.</returns>
-    internal string[] GetPatterns()
-    {
-        return _sensitivePatterns;
-    }
-
-    /// <summary>
-    /// Determines whether the given configuration key matches any of the known sensitive patterns.
-    /// </summary>
-    /// <param name="key">The configuration key to check.</param>
-    /// <returns><c>true</c> if the key looks sensitive; otherwise <c>false</c>.</returns>
-    public bool IsSensitive(string key)
-    {
-        if (string.IsNullOrWhiteSpace(key))
-            return false;
-
-        var comparison = _caseSensitive
-            ? StringComparison.Ordinal
-            : StringComparison.OrdinalIgnoreCase;
-
-        return _sensitivePatterns.Any(pattern =>
-            pattern.Contains('*')
-                ? KeyPatternMatcher.IsMatch(key, pattern, comparison)
-                : key.Contains(pattern, comparison));
     }
 }
 
@@ -415,143 +276,147 @@ public class ConfigDiffer
         ArgumentNullException.ThrowIfNull(target);
 
         options ??= new ConfigDiffOptions();
-        int? maxDepth = options.MaxDepth;
-        string? pathPrefix = options.PathPrefix;
-
         var result = new DiffResult
         {
             BasePath = basePath ?? "baseline",
             TargetPath = targetPath ?? "target"
         };
 
+        var ignoreSet = CreateIgnoreSet(ignoreKeys, options.IgnorePaths);
+        result.IgnoredCount = CompareBaselineKeys(baseline, target, result, ignoreSet, options);
+        result.IgnoredCount += CompareTargetKeys(baseline, target, result, ignoreSet, options);
+        return result;
+    }
+
+    private static HashSet<string> CreateIgnoreSet(
+        IEnumerable<string>? ignoreKeys,
+        IEnumerable<string>? ignorePaths)
+    {
         var capacity = 0;
         if (ignoreKeys is ICollection<string> collection1) capacity += collection1.Count;
-        if (options.IgnorePaths is ICollection<string> collection2) capacity += collection2.Count;
+        if (ignorePaths is ICollection<string> collection2) capacity += collection2.Count;
 
         var ignoreSet = new HashSet<string>(capacity, StringComparer.OrdinalIgnoreCase);
-        if (ignoreKeys != null)
-        {
-            foreach (var pattern in ignoreKeys)
-            {
-                ignoreSet.Add(pattern);
-            }
-        }
+        AddIgnorePatterns(ignoreSet, ignoreKeys);
+        AddIgnorePatterns(ignoreSet, ignorePaths);
+        return ignoreSet;
+    }
 
-        // Add ignore paths from options
-        if (options.IgnorePaths != null)
-        {
-            foreach (var pattern in options.IgnorePaths)
-            {
-                ignoreSet.Add(pattern);
-            }
-        }
+    private static void AddIgnorePatterns(HashSet<string> ignoreSet, IEnumerable<string>? patterns)
+    {
+        if (patterns == null)
+            return;
 
+        foreach (var pattern in patterns)
+            ignoreSet.Add(pattern);
+    }
+
+    private int CompareBaselineKeys(
+        FlatConfig baseline,
+        FlatConfig target,
+        DiffResult result,
+        HashSet<string> ignoreSet,
+        ConfigDiffOptions options)
+    {
         int ignoredCount = 0;
-
-        // Check for removed keys (in baseline but not in target)
         foreach (var kvp in baseline.Values)
         {
             string key = kvp.Key;
-            if (ShouldIgnore(key, ignoreSet, options))
+            if (ShouldSkipKey(key, ignoreSet, options))
             {
                 ignoredCount++;
                 continue;
             }
 
-            // Skip keys that don't match the path prefix
-            if (!MatchesPathPrefix(key, pathPrefix, options.CaseSensitiveKeys))
-            {
-                ignoredCount++;
-                continue;
-            }
-
-            if (!target.ContainsKey(key))
-            {
-                result.Entries.Add(new DiffEntry
-                {
-                    Kind = DiffKind.Removed,
-                    Key = key,
-                    OldValue = kvp.Value,
-                    IsSensitive = _detector.IsSensitive(key)
-                });
-            }
-            else if (ExceedsMaxDepth(key, maxDepth))
-            {
-                // For keys exceeding max depth, compare as opaque blobs
-                // Only report a difference if the entire subtree changed
-                if (!AreValuesEqualAsBlobs(key, kvp.Value, target.GetValue(key), maxDepth))
-                {
-                    result.Entries.Add(new DiffEntry
-                    {
-                        Kind = DiffKind.Changed,
-                        Key = key,
-                        OldValue = kvp.Value,
-                        NewValue = target.GetValue(key),
-                        IsSensitive = _detector.IsSensitive(key)
-                    });
-                }
-            }
-            else if (HasDifferentTypes(kvp.Value, target.GetValue(key)))
-            {
-                // Type changed - use TypeChanged kind
-                result.Entries.Add(new DiffEntry
-                {
-                    Kind = DiffKind.TypeChanged,
-                    Key = key,
-                    OldValue = kvp.Value,
-                    NewValue = target.GetValue(key),
-                    OldType = DetectJsonType(kvp.Value),
-                    NewType = DetectJsonType(target.GetValue(key)),
-                    IsSensitive = _detector.IsSensitive(key)
-                });
-            }
-            else if (!AreValuesEqual(kvp.Value, target.GetValue(key), options))
-            {
-                // Value changed but types are the same
-                result.Entries.Add(new DiffEntry
-                {
-                    Kind = DiffKind.Changed,
-                    Key = key,
-                    OldValue = kvp.Value,
-                    NewValue = target.GetValue(key),
-                    IsSensitive = _detector.IsSensitive(key)
-                });
-            }
+            CompareBaselineValue(key, kvp.Value, target, result, options);
         }
 
-        // Check for added keys (in target but not in baseline)
+        return ignoredCount;
+    }
+
+    private void CompareBaselineValue(
+        string key,
+        string value,
+        FlatConfig target,
+        DiffResult result,
+        ConfigDiffOptions options)
+    {
+        if (!target.ContainsKey(key))
+        {
+            result.Entries.Add(CreateEntry(DiffKind.Removed, key, oldValue: value));
+            return;
+        }
+
+        string targetValue = target.GetValue(key);
+        if (ExceedsMaxDepth(key, options.MaxDepth))
+        {
+            if (!AreValuesEqualAsBlobs(value, targetValue))
+            {
+                result.Entries.Add(CreateEntry(DiffKind.Changed, key, value, targetValue));
+            }
+
+            return;
+        }
+
+        if (HasDifferentTypes(value, targetValue))
+        {
+            result.Entries.Add(new DiffEntry
+            {
+                Kind = DiffKind.TypeChanged,
+                Key = key,
+                OldValue = value,
+                NewValue = targetValue,
+                OldType = DetectJsonType(value),
+                NewType = DetectJsonType(targetValue),
+                IsSensitive = _detector.IsSensitive(key)
+            });
+            return;
+        }
+
+        if (!AreValuesEqual(value, targetValue, options))
+            result.Entries.Add(CreateEntry(DiffKind.Changed, key, value, targetValue));
+    }
+
+    private int CompareTargetKeys(
+        FlatConfig baseline,
+        FlatConfig target,
+        DiffResult result,
+        HashSet<string> ignoreSet,
+        ConfigDiffOptions options)
+    {
+        int ignoredCount = 0;
         foreach (var kvp in target.Values)
         {
             string key = kvp.Key;
-            if (ShouldIgnore(key, ignoreSet, options))
-            {
-                ignoredCount++;
-                continue;
-            }
-
-            // Skip keys that don't match the path prefix
-            if (!MatchesPathPrefix(key, pathPrefix, options.CaseSensitiveKeys))
+            if (ShouldSkipKey(key, ignoreSet, options))
             {
                 ignoredCount++;
                 continue;
             }
 
             if (!baseline.ContainsKey(key))
-            {
-                result.Entries.Add(new DiffEntry
-                {
-                    Kind = DiffKind.Added,
-                    Key = key,
-                    NewValue = kvp.Value,
-                    IsSensitive = _detector.IsSensitive(key)
-                });
-            }
-            // Note: Keys exceeding max depth that exist in both baseline and target are handled
-            // in the removed keys loop above, so we don't need to handle them here
+                result.Entries.Add(CreateEntry(DiffKind.Added, key, newValue: kvp.Value));
         }
 
-        result.IgnoredCount = ignoredCount;
-        return result;
+        return ignoredCount;
+    }
+
+    private DiffEntry CreateEntry(DiffKind kind, string key, string? oldValue = null, string? newValue = null)
+    {
+        return new DiffEntry
+        {
+            Kind = kind,
+            Key = key,
+            OldValue = oldValue,
+            NewValue = newValue,
+            IsSensitive = _detector.IsSensitive(key)
+        };
+    }
+
+    private static bool ShouldSkipKey(string key, HashSet<string> ignoreSet, ConfigDiffOptions options)
+    {
+        return ShouldIgnore(key, ignoreSet, options.CaseSensitiveKeys) ||
+            !MatchesPathPrefix(key, options.PathPrefix, options.CaseSensitiveKeys);
     }
 
     /// <summary>
@@ -560,7 +425,7 @@ public class ConfigDiffer
     /// <param name="key">The configuration key path.</param>
     /// <param name="maxDepth">The maximum allowed depth (<c>null</c> or <c>0</c> means no limit).</param>
     /// <returns><c>true</c> if the key path exceeds the maximum depth; otherwise <c>false</c>.</returns>
-    private bool ExceedsMaxDepth(string key, int? maxDepth)
+    private static bool ExceedsMaxDepth(string key, int? maxDepth)
     {
         if (maxDepth == null || maxDepth <= 0)
             return false;
@@ -581,12 +446,10 @@ public class ConfigDiffer
     /// <summary>
     /// Compares two configuration values as opaque blobs when they exceed max depth.
     /// </summary>
-    /// <param name="key">The configuration key.</param>
     /// <param name="value1">The baseline value.</param>
     /// <param name="value2">The target value.</param>
-    /// <param name="maxDepth">The maximum allowed depth.</param>
     /// <returns><c>true</c> if the values are equal as opaque blobs; otherwise <c>false</c>.</returns>
-    private bool AreValuesEqualAsBlobs(string key, string? value1, string? value2, int? maxDepth)
+    private static bool AreValuesEqualAsBlobs(string? value1, string? value2)
     {
         // If either value is null, use standard comparison
         if (value1 == null || value2 == null)
@@ -598,12 +461,12 @@ public class ConfigDiffer
         return TimingSafeComparer.FixedTimeEquals(value1, value2, StringComparison.Ordinal);
     }
 
-    private bool ShouldIgnore(string key, HashSet<string> ignoreSet, ConfigDiffOptions options)
+    private static bool ShouldIgnore(string key, HashSet<string> ignoreSet, bool caseSensitive)
     {
         if (ignoreSet.Count == 0)
             return false;
 
-        var comparison = options.CaseSensitiveKeys
+        var comparison = caseSensitive
             ? StringComparison.Ordinal
             : StringComparison.OrdinalIgnoreCase;
 
@@ -622,48 +485,36 @@ public class ConfigDiffer
     /// <returns><c>true</c> if the values are equal; otherwise <c>false</c>.</returns>
     private bool AreValuesEqual(string? value1, string? value2, ConfigDiffOptions options)
     {
-        // If either value is null, use standard comparison
         if (value1 == null || value2 == null)
-        {
             return value1 == value2;
-        }
 
-        // Normalize booleans to lowercase for case-insensitive comparison
         if (DetectJsonType(value1) == "boolean" && DetectJsonType(value2) == "boolean")
-        {
             return TimingSafeComparer.FixedTimeEquals(value1.ToLowerInvariant(), value2.ToLowerInvariant());
-        }
 
-        // Use OrdinalIgnoreCase for consistent comparison
         var comparison = options.CaseSensitiveKeys
             ? StringComparison.Ordinal
             : StringComparison.OrdinalIgnoreCase;
 
-        // If unordered array comparison is not enabled, use timing-safe comparison
         if (!options.UnorderedArrays)
             return TimingSafeComparer.FixedTimeEquals(value1, value2, comparison);
 
-        // Check if both values represent arrays (contain array index notation like [0], [1], etc.)
-        if (IsArrayValue(value1) && IsArrayValue(value2))
-        {
-            // Extract array keys (e.g., "MyArray[0]" -> "MyArray")
-            var arrayKey1 = ExtractArrayKey(value1);
-            var arrayKey2 = ExtractArrayKey(value2);
+        return AreUnorderedArrayValuesEqual(value1, value2, comparison);
+    }
 
-            // If they're not the same array, use timing-safe comparison
-            if (!string.Equals(arrayKey1, arrayKey2, comparison))
-                return TimingSafeComparer.FixedTimeEquals(value1, value2, comparison);
+    private static bool AreUnorderedArrayValuesEqual(
+        string value1,
+        string value2,
+        StringComparison comparison)
+    {
+        if (!IsArrayValue(value1) || !IsArrayValue(value2))
+            return TimingSafeComparer.FixedTimeEquals(value1, value2, comparison);
 
-            // Extract all values for each array
-            var values1 = ExtractArrayValues(value1);
-            var values2 = ExtractArrayValues(value2);
+        var arrayKey1 = ExtractArrayKey(value1);
+        var arrayKey2 = ExtractArrayKey(value2);
+        if (!string.Equals(arrayKey1, arrayKey2, comparison))
+            return TimingSafeComparer.FixedTimeEquals(value1, value2, comparison);
 
-            // Compare as sets (unordered)
-            return values1.SetEquals(values2);
-        }
-
-        // Timing-safe comparison for non-arrays or mixed types
-        return TimingSafeComparer.FixedTimeEquals(value1, value2, comparison);
+        return ExtractArrayValues(value1).SetEquals(ExtractArrayValues(value2));
     }
 
     /// <summary>
@@ -735,7 +586,7 @@ public class ConfigDiffer
     /// <param name="pathPrefix">The path prefix to filter by (<c>null</c> or empty means no filtering).</param>
     /// <param name="caseSensitive">Whether the comparison should be case‑sensitive.</param>
     /// <returns><c>true</c> if the key matches the prefix filter; otherwise <c>false</c>.</returns>
-    private bool MatchesPathPrefix(string key, string? pathPrefix, bool caseSensitive = false)
+    private static bool MatchesPathPrefix(string key, string? pathPrefix, bool caseSensitive = false)
     {
         if (string.IsNullOrEmpty(pathPrefix))
             return true;
