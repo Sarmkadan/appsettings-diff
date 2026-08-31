@@ -28,8 +28,9 @@ public static class DotEnvReader
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var lines = File.ReadAllLines(path);
 
-        foreach (var rawLine in lines)
+        for (int lineIndex = 0; lineIndex < lines.Length; lineIndex++)
         {
+            var rawLine = lines[lineIndex];
             var line = rawLine.Trim();
 
             // Skip empty lines and comments
@@ -47,9 +48,11 @@ public static class DotEnvReader
             var key = line.Substring(0, equalsIndex).Trim();
             var value = line.Substring(equalsIndex + 1).Trim();
 
-            // Strip surrounding quotes if present
-            if ((value.StartsWith('\"') && value.EndsWith('\"')) ||
-                (value.StartsWith('\'') && value.EndsWith('\'')))
+            if (value.StartsWith('\"'))
+            {
+                value = ReadDoubleQuotedValue(value, lines, ref lineIndex);
+            }
+            else if (value.StartsWith('\'') && value.EndsWith('\''))
             {
                 value = value.Substring(1, value.Length - 2);
             }
@@ -58,5 +61,87 @@ public static class DotEnvReader
         }
 
         return result;
+    }
+
+    private static string ReadDoubleQuotedValue(string value, string[] lines, ref int lineIndex)
+    {
+        var accumulated = value;
+
+        while (FindClosingDoubleQuote(accumulated) < 0 && lineIndex + 1 < lines.Length)
+        {
+            lineIndex++;
+            accumulated += "\n" + lines[lineIndex];
+        }
+
+        int closingQuoteIndex = FindClosingDoubleQuote(accumulated);
+        if (closingQuoteIndex < 0)
+            return accumulated;
+
+        return UnescapeDoubleQuotedValue(accumulated.Substring(1, closingQuoteIndex - 1));
+    }
+
+    private static int FindClosingDoubleQuote(string value)
+    {
+        for (int index = 1; index < value.Length; index++)
+        {
+            if (value[index] != '\"')
+                continue;
+
+            int precedingBackslashes = 0;
+            for (int backslashIndex = index - 1;
+                 backslashIndex >= 0 && value[backslashIndex] == '\\';
+                 backslashIndex--)
+            {
+                precedingBackslashes++;
+            }
+
+            if (precedingBackslashes % 2 == 0)
+                return index;
+        }
+
+        return -1;
+    }
+
+    private static string UnescapeDoubleQuotedValue(string value)
+    {
+        var result = new System.Text.StringBuilder(value.Length);
+
+        for (int index = 0; index < value.Length; index++)
+        {
+            if (value[index] != '\\' || index + 1 >= value.Length)
+            {
+                result.Append(value[index]);
+                continue;
+            }
+
+            switch (value[index + 1])
+            {
+                case 'n':
+                    result.Append('\n');
+                    index++;
+                    break;
+                case 't':
+                    result.Append('\t');
+                    index++;
+                    break;
+                case 'r':
+                    result.Append('\r');
+                    index++;
+                    break;
+                case '\"':
+                    result.Append('\"');
+                    index++;
+                    break;
+                case '\\':
+                    result.Append('\\');
+                    index++;
+                    break;
+                default:
+                    result.Append('\\');
+                    break;
+            }
+        }
+
+        return result.ToString();
     }
 }
