@@ -100,6 +100,10 @@ public static class ThreeWayMerger
         Dictionary<string, string> ours,
         Dictionary<string, string> theirs)
     {
+        ArgumentNullException.ThrowIfNull(baseConfig);
+        ArgumentNullException.ThrowIfNull(ours);
+        ArgumentNullException.ThrowIfNull(theirs);
+
         return Merge(baseConfig, ours, theirs, ConflictResolutionStrategy.Manual);
     }
 
@@ -112,7 +116,7 @@ public static class ThreeWayMerger
     /// <param name="strategy">The conflict resolution strategy to use.</param>
     /// <returns>A <see cref="MergeResult"/> containing the merged configuration and any conflicts.</returns>
     /// <exception cref="ArgumentNullException">
-    /// Thrown when <paramref name="baseConfig"/>, <paramref name="ours"/>, <paramref name="theirs"/> or <paramref name="strategy"/> is <c>null</c>.
+    /// Thrown when <paramref name="baseConfig"/>, <paramref name="ours"/> or <paramref name="theirs"/> is <c>null</c>.
     /// </exception>
     public static MergeResult Merge(
         Dictionary<string, string> baseConfig,
@@ -123,7 +127,6 @@ public static class ThreeWayMerger
         ArgumentNullException.ThrowIfNull(baseConfig);
         ArgumentNullException.ThrowIfNull(ours);
         ArgumentNullException.ThrowIfNull(theirs);
-        ArgumentNullException.ThrowIfNull(strategy);
 
         var merged = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var conflicts = new List<MergeConflict>();
