@@ -44,11 +44,6 @@ public record ConfigDiffOptions
     /// </summary>
     public ConfigDiffOptions()
     {
-        UnorderedArrays = false;
-        MaxDepth = null;
-        PathPrefix = null;
-        CaseSensitiveKeys = false;
-        IgnorePaths = null;
     }
 }
 
