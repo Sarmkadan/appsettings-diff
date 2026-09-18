@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 
 namespace AppsettingsDiff;
 
@@ -86,9 +87,12 @@ public class SensitiveKeyDetector
     /// Determines whether the given configuration key matches any of the known sensitive patterns.
     /// </summary>
     /// <param name="key">The configuration key to check.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns><c>true</c> if the key looks sensitive; otherwise <c>false</c>.</returns>
-    public bool IsSensitive(string key)
+    public bool IsSensitive(string key, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (string.IsNullOrWhiteSpace(key))
             return false;
 
