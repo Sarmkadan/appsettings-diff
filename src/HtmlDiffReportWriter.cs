@@ -161,8 +161,21 @@ public sealed class HtmlDiffReportWriter : DiffReportWriterBase
         sb.AppendLine("</body>");
         sb.AppendLine("</html>");
 
-        writer.Write(sb.ToString());
-        writer.Flush();
+        try
+        {
+            writer.Write(sb.ToString());
+            writer.Flush();
+        }
+        catch (IOException ex)
+        {
+            CleanupPartialOutput(result.TargetPath);
+            throw new ReportWriteException($"Failed to write HTML report to {result.TargetPath ?? "unknown"}", ex, result.TargetPath);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            CleanupPartialOutput(result.TargetPath);
+            throw new ReportWriteException($"Failed to write HTML report to {result.TargetPath ?? "unknown"}", ex, result.TargetPath);
+        }
     }
 
     /// <summary>
@@ -183,4 +196,27 @@ public sealed class HtmlDiffReportWriter : DiffReportWriterBase
             .Replace(" ", "&nbsp;")
             .Replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;");
     }
+
+    private static void CleanupPartialOutput(string? targetPath)
+    {
+        if (!string.IsNullOrEmpty(targetPath) && File.Exists(targetPath))
+        {
+            try
+            {
+                File.Delete(targetPath);
+            }
+            catch
+            {
+                // Ignore cleanup failures to avoid masking the original exception
+            }
+        }
+    }
+}
+
+internal sealed class ReportWriteException : Exception
+{
+    public string TargetPath { get; }
+
+    public ReportWriteException(string message, Exception inner, string targetPath)
+        : base(message, inner) => TargetPath = targetPath;
 }
