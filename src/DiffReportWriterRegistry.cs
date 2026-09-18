@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace AppsettingsDiff;
 
@@ -89,7 +90,7 @@ public static class DiffReportWriterRegistry
     /// <param name="formatName">The format name to register (e.g., "console", "json", "markdown").</param>
     /// <param name="factory">The factory function that creates the writer instance.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="formatName"/> or <paramref name="factory"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">Thrown if <paramref name="formatName"/> is empty or whitespace.</exception>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="formatName"/> is empty, whitespace, or already registered.</exception>
     public static void Register(string formatName, WriterFactory factory)
     {
         ArgumentNullException.ThrowIfNull(formatName);
@@ -97,6 +98,9 @@ public static class DiffReportWriterRegistry
 
         if (string.IsNullOrWhiteSpace(formatName))
             throw new ArgumentException("Format name cannot be empty or whitespace.", nameof(formatName));
+
+        if (_registry.ContainsKey(formatName))
+            throw new ArgumentException($"A writer for format '{formatName}' is already registered.", nameof(formatName));
 
         _registry[formatName] = factory;
     }
@@ -113,26 +117,27 @@ public static class DiffReportWriterRegistry
     /// <summary>
     /// Creates a diff report writer for the specified format.
     /// </summary>
-    /// <param name="format">The output format name (console, json, markdown, html, jsonpatch, summary-json, or null for console).</param>
+    /// <param name="format">The output format name (console, json, markdown, html, jsonpatch, summary-json).</param>
     /// <param name="detector">The sensitive key detector.</param>
     /// <param name="showSecrets">Whether to show sensitive values.</param>
     /// <param name="maskSensitive">Whether to mask sensitive values with *** instead of [REDACTED].</param>
     /// <returns>An <see cref="IDiffReportWriter"/> instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="detector"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="format"/> is null/empty or not a registered format.</exception>
     public static IDiffReportWriter Create(string? format, SensitiveKeyDetector detector, bool showSecrets = false, bool maskSensitive = false)
     {
         ArgumentNullException.ThrowIfNull(detector);
 
-        // Default to console if format is null or empty
-        var formatName = string.IsNullOrWhiteSpace(format) ? "console" : format;
+        if (string.IsNullOrWhiteSpace(format))
+            throw new ArgumentException("Format name cannot be null or empty.", nameof(format));
 
-        if (_registry.TryGetValue(formatName, out var factory))
+        if (_registry.TryGetValue(format, out var factory))
         {
             return factory(detector, showSecrets, maskSensitive);
         }
 
-        // Return console writer as default for unknown formats
-        return new ConsoleDiffReportWriter(detector, showSecrets, maskSensitive);
+        var supported = string.Join(", ", _registry.Keys.OrderBy(k => k));
+        throw new ArgumentException($"Unsupported format '{format}'. Supported formats are: {supported}.", nameof(format));
     }
 
     /// <summary>
@@ -141,7 +146,7 @@ public static class DiffReportWriterRegistry
     /// <param name="formatName">The format name to register (e.g., "console", "json", "markdown").</param>
     /// <param name="writer">The format writer function that handles output.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="formatName"/> or <paramref name="writer"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">Thrown if <paramref name="formatName"/> is empty or whitespace.</exception>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="formatName"/> is empty, whitespace, or already registered.</exception>
     public static void RegisterFormat(string formatName, FormatWriter writer)
     {
         ArgumentNullException.ThrowIfNull(formatName);
@@ -149,6 +154,9 @@ public static class DiffReportWriterRegistry
 
         if (string.IsNullOrWhiteSpace(formatName))
             throw new ArgumentException("Format name cannot be empty or whitespace.", nameof(formatName));
+
+        if (_formatWriters.ContainsKey(formatName))
+            throw new ArgumentException($"A format writer for '{formatName}' is already registered.", nameof(formatName));
 
         _formatWriters[formatName] = writer;
     }
@@ -176,18 +184,19 @@ public static class DiffReportWriterRegistry
     /// Gets the format writer for the specified format.
     /// </summary>
     /// <param name="format">The output format name.</param>
-    /// <returns>A format writer function, or null if format is not found.</returns>
-    public static FormatWriter? GetFormatWriter(string? format)
+    /// <returns>A format writer function.</returns>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="format"/> is null/empty or not a registered format.</exception>
+    public static FormatWriter GetFormatWriter(string? format)
     {
-        // Default to console if format is null or empty
-        var formatName = string.IsNullOrWhiteSpace(format) ? "console" : format;
+        if (string.IsNullOrWhiteSpace(format))
+            throw new ArgumentException("Format name cannot be null or empty.", nameof(format));
 
-        if (_formatWriters.TryGetValue(formatName, out var writer))
+        if (_formatWriters.TryGetValue(format, out var writer))
         {
             return writer;
         }
 
-        // Return console writer as default for unknown formats
-        return _formatWriters.TryGetValue("console", out var defaultWriter) ? defaultWriter : null;
+        var supported = string.Join(", ", _formatWriters.Keys.OrderBy(k => k));
+        throw new ArgumentException($"Unsupported format '{format}'. Supported formats are: {supported}.", nameof(format));
     }
 }
