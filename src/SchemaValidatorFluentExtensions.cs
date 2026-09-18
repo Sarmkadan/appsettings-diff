@@ -16,9 +16,19 @@ namespace AppsettingsDiff
         /// <param name="configs">A collection of configurations to validate.</param>
         /// <param name="schema">The schema to validate against.</param>
         /// <returns>A flat list of all schema violations found in all configurations.</returns>
+        /// <example>
+        /// <code>
+        /// var validator = new SchemaValidator();
+        /// var configs = new List&lt;Dictionary&lt;string, string&gt;&gt; { /* configuration dictionaries */ };
+        /// var schema = new ConfigSchema();
+        /// var violations = validator.ValidateMany(configs, schema);
+        /// // Or chain with FirstErrorOrNull
+        /// var firstError = validator.ValidateMany(configs, schema).FirstErrorOrNull();
+        /// </code>
+        /// </example>
         public static IEnumerable<SchemaViolation> ValidateMany(
-            this SchemaValidator validator, 
-            IEnumerable<Dictionary<string, string>> configs, 
+            this SchemaValidator validator,
+            IEnumerable<Dictionary<string, string>> configs,
             ConfigSchema schema)
         {
             ArgumentNullException.ThrowIfNull(validator);
@@ -33,6 +43,14 @@ namespace AppsettingsDiff
         /// </summary>
         /// <param name="violations">The collection of schema violations.</param>
         /// <returns>The first violation, or null if the collection is empty.</returns>
+        /// <example>
+        /// <code>
+        /// var validator = new SchemaValidator();
+        /// var configs = new List&lt;Dictionary&lt;string, string&gt;&gt; { /* configuration dictionaries */ };
+        /// var schema = new ConfigSchema();
+        /// var firstError = validator.ValidateMany(configs, schema).FirstErrorOrNull();
+        /// </code>
+        /// </example>
         public static SchemaViolation? FirstErrorOrNull(this IEnumerable<SchemaViolation> violations)
         {
             ArgumentNullException.ThrowIfNull(violations);
