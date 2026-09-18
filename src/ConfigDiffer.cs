@@ -255,6 +255,7 @@ public class ConfigDiffer
     /// <param name="targetPath">Optional identifier for the target (e.g. a file path) recorded in the result.</param>
     /// <param name="options">Optional configuration options for the diff operation.</param>
     /// <param name="depth">Internal recursion depth counter. Do not set manually.</param>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="DiffResult"/> describing the differences.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="baseline"/> or <paramref name="target"/> is <c>null</c>.</exception>
     /// <exception cref="InvalidOperationException">Thrown when the maximum recursion depth is exceeded.</exception>
@@ -265,7 +266,8 @@ public class ConfigDiffer
         string? basePath = null,
         string? targetPath = null,
         ConfigDiffOptions? options = null,
-        int depth = 0)
+        int depth = 0,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(baseline);
         ArgumentNullException.ThrowIfNull(target);
@@ -278,8 +280,8 @@ public class ConfigDiffer
         };
 
         var ignoreSet = CreateIgnoreSet(ignoreKeys, options.IgnorePaths);
-        result.IgnoredCount = CompareBaselineKeys(baseline, target, result, ignoreSet, options);
-        result.IgnoredCount += CompareTargetKeys(baseline, target, result, ignoreSet, options);
+        result.IgnoredCount = CompareBaselineKeys(baseline, target, result, ignoreSet, options, cancellationToken);
+        result.IgnoredCount += CompareTargetKeys(baseline, target, result, ignoreSet, options, cancellationToken);
         return result;
     }
 
@@ -311,11 +313,13 @@ public class ConfigDiffer
         FlatConfig target,
         DiffResult result,
         HashSet<string> ignoreSet,
-        ConfigDiffOptions options)
+        ConfigDiffOptions options,
+        CancellationToken cancellationToken)
     {
         int ignoredCount = 0;
         foreach (var kvp in baseline.Values)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             string key = kvp.Key;
             if (ShouldSkipKey(key, ignoreSet, options))
             {
@@ -377,11 +381,13 @@ public class ConfigDiffer
         FlatConfig target,
         DiffResult result,
         HashSet<string> ignoreSet,
-        ConfigDiffOptions options)
+        ConfigDiffOptions options,
+        CancellationToken cancellationToken)
     {
         int ignoredCount = 0;
         foreach (var kvp in target.Values)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             string key = kvp.Key;
             if (ShouldSkipKey(key, ignoreSet, options))
             {
