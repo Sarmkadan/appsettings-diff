@@ -17,15 +17,12 @@ public static class TimingSafeComparer
     /// <see langword="true"/> if the strings are equal; otherwise, <see langword="false"/>.
     /// </returns>
     /// <remarks>
-    /// This method handles null values gracefully and uses constant-time comparison
-    /// for non-null values to prevent timing attacks.
+    /// This method uses constant-time comparison to prevent timing attacks.
     /// </remarks>
     public static bool FixedTimeEquals(string? a, string? b)
     {
-        if (a is null || b is null)
-        {
-            return a == b; // Both null = equal, one null = not equal
-        }
+        ArgumentNullException.ThrowIfNull(a, nameof(a));
+        ArgumentNullException.ThrowIfNull(b, nameof(b));
 
         return CryptographicOperations.FixedTimeEquals(
             System.Text.Encoding.UTF8.GetBytes(a),
@@ -43,23 +40,18 @@ public static class TimingSafeComparer
     /// <see langword="true"/> if the strings are equal; otherwise, <see langword="false"/>.
     /// </returns>
     /// <remarks>
-    /// This method handles null values gracefully and uses constant-time comparison
-    /// for non-null values to prevent timing attacks. The comparison type is only used
+    /// This method uses constant-time comparison to prevent timing attacks. The comparison type is only used
     /// for case-insensitive comparisons to ensure consistent behavior.
     /// </remarks>
     public static bool FixedTimeEquals(string? a, string? b, StringComparison comparison)
     {
+        ArgumentNullException.ThrowIfNull(a, nameof(a));
+        ArgumentNullException.ThrowIfNull(b, nameof(b));
+
         // For case-sensitive comparisons, use the standard FixedTimeEquals
         if (comparison == StringComparison.Ordinal)
         {
             return FixedTimeEquals(a, b);
-        }
-
-        // For case-insensitive comparisons, we need to normalize both strings
-        // to the same case before comparing with fixed-time comparison
-        if (a is null || b is null)
-        {
-            return string.Equals(a, b, comparison);
         }
 
         // Normalize both strings to lowercase for case-insensitive comparison
@@ -96,6 +88,7 @@ public static class TimingSafeComparer
     /// </returns>
     public static bool FixedTimeEquals(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
     {
+        // CryptographicOperations.FixedTimeEquals safely handles different lengths without leaking timing information
         return CryptographicOperations.FixedTimeEquals(a, b);
     }
 
@@ -109,15 +102,8 @@ public static class TimingSafeComparer
     /// </returns>
     public static bool FixedTimeEquals(byte[]? a, byte[]? b)
     {
-        if (a is null || b is null)
-        {
-            return a == b; // Both null = equal, one null = not equal
-        }
-
-        if (a.Length != b.Length)
-        {
-            return false;
-        }
+        ArgumentNullException.ThrowIfNull(a, nameof(a));
+        ArgumentNullException.ThrowIfNull(b, nameof(b));
 
         return CryptographicOperations.FixedTimeEquals(a, b);
     }
