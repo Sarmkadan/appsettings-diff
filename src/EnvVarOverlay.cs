@@ -10,16 +10,16 @@ public static class EnvVarOverlay
     /// Reads environment variables that start with the specified <paramref name="prefix"/>.
     /// </summary>
     /// <param name="prefix">
-    /// The prefix used to filter environment variables. Must not be <c>null</c>.
+    /// The prefix used to filter environment variables. Must not be <c>null</c> or empty.
     /// </param>
     /// <returns>
     /// A dictionary containing the matching environment variables (key/value pairs) with
     /// case‑insensitive keys.
     /// </returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="prefix"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="prefix"/> is <c>null</c> or empty.</exception>
     public static Dictionary<string, string> ReadFromEnvironment(string? prefix = null)
     {
-        ArgumentNullException.ThrowIfNull(prefix);
+        ArgumentException.ThrowIfNullOrEmpty(prefix);
 
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -27,7 +27,7 @@ public static class EnvVarOverlay
         {
             if (entry.Key is string key && entry.Value is string value)
             {
-                if (prefix == null || key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                if (key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 {
                     result[key] = value;
                 }
@@ -56,6 +56,11 @@ public static class EnvVarOverlay
         {
             string key = entry.Key;
             string value = entry.Value;
+
+            if (string.IsNullOrEmpty(key) || value is null)
+            {
+                continue;
+            }
 
             // Удаление префиксов ASPNETCORE_ и DOTNET_
             if (key.StartsWith("ASPNETCORE_", StringComparison.OrdinalIgnoreCase))
@@ -106,15 +111,17 @@ public static class EnvVarOverlay
             string key = entry.Key;
             string value = entry.Value;
 
-            if (!string.IsNullOrEmpty(key))
+            if (string.IsNullOrEmpty(key) || value is null)
             {
-                if (key.Contains("__", StringComparison.Ordinal))
-                {
-                    key = key.Replace("__", ":", StringComparison.Ordinal);
-                }
-
-                prefixed[key] = value;
+                continue;
             }
+
+            if (key.Contains("__", StringComparison.Ordinal))
+            {
+                key = key.Replace("__", ":", StringComparison.Ordinal);
+            }
+
+            prefixed[key] = value;
         }
 
         // Apply the existing normalization (ASP.NET Core prefixes and '__' handling)
@@ -170,6 +177,11 @@ public static class EnvVarOverlay
         {
             string key = entry.Key;
             string value = entry.Value;
+
+            if (string.IsNullOrEmpty(key) || value is null)
+            {
+                continue;
+            }
 
             if (!string.IsNullOrEmpty(prefix))
             {
