@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 
 namespace AppsettingsDiff;
 
@@ -51,65 +52,70 @@ public sealed class HtmlDiffReportWriter : DiffReportWriterBase
         ArgumentNullException.ThrowIfNull(result);
         ArgumentNullException.ThrowIfNull(writer);
 
-        writer.WriteLine("<!DOCTYPE html>");
-        writer.WriteLine("<html lang=\"en\">");
-        writer.WriteLine("<head>");
-        writer.WriteLine(" <meta charset=\"utf-8\">");
-        writer.WriteLine(" <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
-        writer.WriteLine(" <title>Configuration Diff Report</title>");
-        writer.WriteLine(" <style>");
-        writer.WriteLine(" body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; margin: 2rem; line-height: 1.6; color: #333; }");
-        writer.WriteLine(" h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 0.5rem; }");
-        writer.WriteLine(" h2 { color: #34495e; margin-top: 2rem; }");
-        writer.WriteLine(" .summary { background-color: #f8f9fa; padding: 1rem; border-radius: 4px; margin-bottom: 2rem; border-left: 4px solid #3498db; }");
-        writer.WriteLine(" table { width: 100%; border-collapse: collapse; margin-top: 1rem; }");
-        writer.WriteLine(" th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd; }");
-        writer.WriteLine(" th { background-color: #f1f3f5; font-weight: 600; }");
-        writer.WriteLine(" tr.added { background-color: #d4edda; }");
-        writer.WriteLine(" tr.removed { background-color: #f8d7da; }");
-        writer.WriteLine(" tr.changed { background-color: #fff3cd; }");
-        writer.WriteLine(" tr.typechanged { background-color: #e8c5ff; }");
-        writer.WriteLine(" .added { background-color: #d4edda !important; }");
-        writer.WriteLine(" .removed { background-color: #f8d7da !important; }");
-        writer.WriteLine(" .changed { background-color: #fff3cd !important; }");
-        writer.WriteLine(" .typechanged { background-color: #e8c5ff !important; }");
-        writer.WriteLine(" .sensitive { font-style: italic; color: #6c757d; }");
-        writer.WriteLine(" .footer { margin-top: 3rem; font-size: 0.85rem; color: #6c757d; border-top: 1px solid #eee; padding-top: 1rem; }");
-        writer.WriteLine(" </style>");
-        writer.WriteLine("</head>");
-        writer.WriteLine("<body>");
-        writer.WriteLine(" <h1>Configuration Diff Report</h1>");
-        writer.WriteLine($" <p>Comparing <strong>{EscapeHtml(result.BasePath)}</strong> with <strong>{EscapeHtml(result.TargetPath)}</strong></p>");
+        var sb = new StringBuilder();
+        
+        sb.AppendLine("<!DOCTYPE html>");
+        sb.AppendLine("<html lang=\"en\">");
+        sb.AppendLine("<head>");
+        sb.AppendLine(" <meta charset=\"utf-8\">");
+        sb.AppendLine(" <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+        sb.AppendLine(" <title>Configuration Diff Report</title>");
+        sb.AppendLine(" <style>");
+        sb.AppendLine(" body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; margin: 2rem; line-height: 1.6; color: #333; }");
+        sb.AppendLine(" h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 0.5rem; }");
+        sb.AppendLine(" h2 { color: #34495e; margin-top: 2rem; }");
+        sb.AppendLine(" .summary { background-color: #f8f9fa; padding: 1rem; border-radius: 4px; margin-bottom: 2rem; border-left: 4px solid #3498db; }");
+        sb.AppendLine(" table { width: 100%; border-collapse: collapse; margin-top: 1rem; }");
+        sb.AppendLine(" th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd; }");
+        sb.AppendLine(" th { background-color: #f1f3f5; font-weight: 600; }");
+        sb.AppendLine(" tr.added { background-color: #d4edda; }");
+        sb.AppendLine(" tr.removed { background-color: #f8d7da; }");
+        sb.AppendLine(" tr.changed { background-color: #fff3cd; }");
+        sb.AppendLine(" tr.typechanged { background-color: #e8c5ff; }");
+        sb.AppendLine(" .added { background-color: #d4edda !important; }");
+        sb.AppendLine(" .removed { background-color: #f8d7da !important; }");
+        sb.AppendLine(" .changed { background-color: #fff3cd !important; }");
+        sb.AppendLine(" .typechanged { background-color: #e8c5ff !important; }");
+        sb.AppendLine(" .sensitive { font-style: italic; color: #6c757d; }");
+        sb.AppendLine(" .footer { margin-top: 3rem; font-size: 0.85rem; color: #6c757d; border-top: 1px solid #eee; padding-top: 1rem; }");
+        sb.AppendLine(" </style>");
+        sb.AppendLine("</head>");
+        sb.AppendLine("<body>");
+        sb.AppendLine(" <h1>Configuration Diff Report</h1>");
+        
+        var basePathEscaped = EscapeHtml(result.BasePath);
+        var targetPathEscaped = EscapeHtml(result.TargetPath);
+        sb.AppendLine(" <p>Comparing <strong>" + basePathEscaped + "</strong> with <strong>" + targetPathEscaped + "</strong></p>");
 
         // Summary section
-        writer.WriteLine(" <div class=\"summary\">");
-        writer.WriteLine(" <h2>Summary</h2>");
+        sb.AppendLine(" <div class=\"summary\">");
+        sb.AppendLine(" <h2>Summary</h2>");
         var added = result.CountOf(DiffKind.Added);
         var removed = result.CountOf(DiffKind.Removed);
         var changed = result.CountOf(DiffKind.Changed);
         var typeChanged = result.CountOf(DiffKind.TypeChanged);
-        writer.WriteLine(" <p><strong>Added:</strong> {0}<br>", added);
-        writer.WriteLine(" <strong>Removed:</strong> {0}<br>", removed);
-        writer.WriteLine(" <strong>Changed:</strong> {0}<br>", changed);
-        writer.WriteLine(" <strong>TypeChanged:</strong> {0}</p>", typeChanged);
-        writer.WriteLine(" </div>");
+        sb.AppendLine(" <p><strong>Added:</strong> " + added + "<br>");
+        sb.AppendLine(" <strong>Removed:</strong> " + removed + "<br>");
+        sb.AppendLine(" <strong>Changed:</strong> " + changed + "<br>");
+        sb.AppendLine(" <strong>TypeChanged:</strong> " + typeChanged + "</p>");
+        sb.AppendLine(" </div>");
 
         // Table section
-        writer.WriteLine(" <h2>Details</h2>");
-        writer.WriteLine(" <table>");
-        writer.WriteLine(" <thead>");
-        writer.WriteLine(" <tr>");
-        writer.WriteLine(" <th>Key</th>");
-        writer.WriteLine(" <th>Change</th>");
-        writer.WriteLine(" <th>Old Value</th>");
-        writer.WriteLine(" <th>New Value</th>");
-        writer.WriteLine(" </tr>");
-        writer.WriteLine(" </thead>");
-        writer.WriteLine(" <tbody>");
+        sb.AppendLine(" <h2>Details</h2>");
+        sb.AppendLine(" <table>");
+        sb.AppendLine(" <thead>");
+        sb.AppendLine(" <tr>");
+        sb.AppendLine(" <th>Key</th>");
+        sb.AppendLine(" <th>Change</th>");
+        sb.AppendLine(" <th>Old Value</th>");
+        sb.AppendLine(" <th>New Value</th>");
+        sb.AppendLine(" </tr>");
+        sb.AppendLine(" </thead>");
+        sb.AppendLine(" <tbody>");
 
         foreach (var entry in result.Entries)
         {
-            var key = EscapeHtml(entry.Key);
+            var keyEscaped = EscapeHtml(entry.Key);
             string change;
             string oldVal;
             string newVal;
@@ -117,7 +123,7 @@ public sealed class HtmlDiffReportWriter : DiffReportWriterBase
 
             if (entry.Kind == DiffKind.TypeChanged && entry.OldType != null && entry.NewType != null)
             {
-                change = $"{entry.Kind} ({entry.OldType}→{entry.NewType}) ";
+                change = entry.Kind + " (" + entry.OldType + "→" + entry.NewType + ") ";
                 oldVal = EscapeHtml(Redact(entry.OldValue, entry.IsSensitive));
                 newVal = EscapeHtml(Redact(entry.NewValue, entry.IsSensitive));
                 rowClass = "typechanged";
@@ -136,25 +142,26 @@ public sealed class HtmlDiffReportWriter : DiffReportWriterBase
                 };
             }
 
-            writer.WriteLine(" <tr class=\"{0}\">", rowClass);
-            writer.WriteLine(" <td><code>{0}</code></td>", key);
-            writer.WriteLine(" <td><span class=\"{0}\">{1}</span></td>", rowClass, change);
-            writer.WriteLine(" <td><code>{0}</code></td>", oldVal);
-            writer.WriteLine(" <td><code>{0}</code></td>", newVal);
-            writer.WriteLine(" </tr>");
+            sb.AppendLine(" <tr class=\"" + rowClass + "\">");
+            sb.AppendLine(" <td><code>" + keyEscaped + "</code></td>");
+            sb.AppendLine(" <td><span class=\"" + rowClass + "\">" + change + "</span></td>");
+            sb.AppendLine(" <td><code>" + oldVal + "</code></td>");
+            sb.AppendLine(" <td><code>" + newVal + "</code></td>");
+            sb.AppendLine(" </tr>");
         }
 
-        writer.WriteLine(" </tbody>");
-        writer.WriteLine(" </table>");
+        sb.AppendLine(" </tbody>");
+        sb.AppendLine(" </table>");
 
-        writer.WriteLine(" <div class=\"footer\">");
-        writer.WriteLine(" <p>Generated by appsettings-diff at {0}</p>", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-        writer.WriteLine(" <p>Base: {0} | Target: {1}</p>", EscapeHtml(result.BasePath), EscapeHtml(result.TargetPath));
-        writer.WriteLine(" </div>");
+        sb.AppendLine(" <div class=\"footer\">");
+        sb.AppendLine(" <p>Generated by appsettings-diff at " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "</p>");
+        sb.AppendLine(" <p>Base: " + basePathEscaped + " | Target: " + targetPathEscaped + "</p>");
+        sb.AppendLine(" </div>");
 
-        writer.WriteLine("</body>");
-        writer.WriteLine("</html>");
+        sb.AppendLine("</body>");
+        sb.AppendLine("</html>");
 
+        writer.Write(sb.ToString());
         writer.Flush();
     }
 
