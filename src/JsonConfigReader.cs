@@ -2,15 +2,41 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace AppsettingsDiff
 {
     public class JsonConfigReader
     {
+        /// <summary>
+        /// Synchronously reads a JSON configuration file and flattens it into a dictionary.
+        /// </summary>
+        /// <param name="jsonConfigPath">Path to the JSON file.</param>
+        /// <returns>A dictionary containing flattened key/value pairs.</returns>
         public Dictionary<string, string> ReadJsonConfig(string jsonConfigPath)
         {
             var json = File.ReadAllText(jsonConfigPath);
             using var doc = JsonDocument.Parse(json);
+            var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            Flatten(doc.RootElement, string.Empty, values);
+            return values;
+        }
+
+        /// <summary>
+        /// Asynchronously reads a JSON configuration file and flattens it into a dictionary.
+        /// </summary>
+        /// <param name="jsonConfigPath">Path to the JSON file.</param>
+        /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains a dictionary with flattened key/value pairs.</returns>
+        public async Task<Dictionary<string, string>> ReadAsync(string jsonConfigPath, CancellationToken cancellationToken = default)
+        {
+            // Open the file as a stream to avoid loading the entire file into memory at once.
+            await using var stream = File.OpenRead(jsonConfigPath);
+
+            // Parse the JSON document asynchronously, respecting the cancellation token.
+            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+
             var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             Flatten(doc.RootElement, string.Empty, values);
             return values;
