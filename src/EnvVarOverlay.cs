@@ -4,6 +4,13 @@ namespace AppsettingsDiff;
 /// Provides methods to overlay environment variables onto a configuration dictionary
 /// following ASP.NET Core conventions (handling special prefixes and '__' to ':' conversion).
 /// </summary>
+/// <example>
+/// <code>
+/// var envVars = EnvVarOverlay.ReadFromEnvironment("APP_");
+/// var config = new Dictionary&lt;string, string&gt; { { "Key1", "Value1" } };
+/// var result = EnvVarOverlay.Apply(config, envVars, out var overridden);
+/// </code>
+/// </example>
 public static class EnvVarOverlay
 {
     /// <summary>
@@ -17,6 +24,15 @@ public static class EnvVarOverlay
     /// case‑insensitive keys.
     /// </returns>
     /// <exception cref="ArgumentException">Thrown when <paramref name="prefix"/> is <c>null</c> or empty.</exception>
+    /// <example>
+    /// <code>
+    /// var vars = EnvVarOverlay.ReadFromEnvironment("MYAPP_");
+    /// foreach (var kvp in vars)
+    /// {
+    ///     Console.WriteLine($"{kvp.Key} = {kvp.Value}");
+    /// }
+    /// </code>
+    /// </example>
     public static Dictionary<string, string> ReadFromEnvironment(string? prefix = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(prefix);
@@ -47,6 +63,13 @@ public static class EnvVarOverlay
     /// </returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="envVars"/> is <c>null</c>.</exception>
     /// <exception cref="EnvVarOverlayException">Thrown when a key contains invalid characters, bad path separators, or malformed array indices.</exception>
+    /// <example>
+    /// <code>
+    /// var input = new Dictionary&lt;string, string&gt; { { "APP__SECTION__KEY", "value" } };
+    /// var normalized = EnvVarOverlay.Normalize(input);
+    /// // normalized contains { "APP:SECTION:KEY", "value" }
+    /// </code>
+    /// </example>
     public static Dictionary<string, string> Normalize(IDictionary<string, string> envVars)
     {
         ArgumentNullException.ThrowIfNull(envVars);
@@ -102,6 +125,15 @@ public static class EnvVarOverlay
     /// Thrown when <paramref name="config"/> or <paramref name="envVars"/> is <c>null</c>.
     /// </exception>
     /// <exception cref="EnvVarOverlayException">Thrown when a key contains invalid characters, bad path separators, or malformed array indices.</exception>
+    /// <example>
+    /// <code>
+    /// var config = new Dictionary&lt;string, string&gt; { { "Database:Host", "localhost" } };
+    /// var envVars = new Dictionary&lt;string, string&gt; { { "Database:Host", "production-server" } };
+    /// var result = EnvVarOverlay.Apply(config, envVars, out var overridden);
+    /// // result["Database:Host"] is "production-server"
+    /// // overridden contains "Database:Host"
+    /// </code>
+    /// </example>
     public static Dictionary<string, string> Apply(Dictionary<string, string> config, IDictionary<string, string> envVars, out List<string> overriddenKeys)
     {
         ArgumentNullException.ThrowIfNull(config);
@@ -170,6 +202,14 @@ public static class EnvVarOverlay
     /// Thrown when <paramref name="config"/> or <paramref name="envVars"/> is <c>null</c>.
     /// </exception>
     /// <exception cref="EnvVarOverlayException">Thrown when a key contains invalid characters, bad path separators, or malformed array indices.</exception>
+    /// <example>
+    /// <code>
+    /// var config = new Dictionary&lt;string, string&gt; { { "Key1", "Value1" } };
+    /// var envVars = new Dictionary&lt;string, string&gt; { { "MYAPP_Key1", "OverriddenValue" } };
+    /// var result = EnvVarOverlay.Apply(config, envVars, "MYAPP_", out var overridden);
+    /// // result["Key1"] is "OverriddenValue"
+    /// </code>
+    /// </example>
     public static Dictionary<string, string> Apply(Dictionary<string, string> config, IDictionary<string, string> envVars, string? prefix, out List<string> overriddenKeys)
     {
         ArgumentNullException.ThrowIfNull(config);
@@ -280,8 +320,31 @@ public static class EnvVarOverlay
 /// <summary>
 /// Exception thrown when an environment variable key cannot be parsed or contains invalid configuration path elements.
 /// </summary>
+/// <example>
+/// <code>
+/// try
+/// {
+///     EnvVarOverlay.Normalize(new Dictionary&lt;string, string&gt; { { "BAD KEY!", "val" } });
+/// }
+/// catch (EnvVarOverlayException ex)
+/// {
+///     Console.WriteLine(ex.Message);
+/// }
+/// </code>
+/// </example>
 public class EnvVarOverlayException : Exception
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EnvVarOverlayException"/> class with a specified error message.
+    /// </summary>
+    /// <param name="message">The message that describes the error.</param>
     public EnvVarOverlayException(string message) : base(message) { }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EnvVarOverlayException"/> class with a specified error message
+    /// and a reference to the inner exception that is the cause of this exception.
+    /// </summary>
+    /// <param name="message">The error message that explains the reason for the exception.</param>
+    /// <param name="inner">The exception that is the cause of the current exception.</param>
     public EnvVarOverlayException(string message, Exception? inner) : base(message, inner) { }
 }
