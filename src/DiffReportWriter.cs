@@ -278,7 +278,7 @@ public sealed class DiffReportWriter : DiffReportWriterBase
                 throw new ArgumentException("Invalid path", nameof(entry.Key));
             }
 
-            var value = Policy.Redact(
+            var value = Redact(
                 entry.Kind == DiffKind.Removed ? entry.OldValue : entry.NewValue,
                 entry.IsSensitive);
 
