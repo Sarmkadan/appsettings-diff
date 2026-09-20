@@ -24,39 +24,41 @@ public enum FailOn
     SchemaViolation
 }
 
-/// <summary>
-/// Command-line entry point for the appsettings diff tool.
-/// </summary>
-public static class Program
+public sealed record ParsedArgs(
+    FileInfo? BaseFile,
+    FileInfo? TargetFile,
+    DirectoryInfo? Dir,
+    string[]? Envs,
+    string? Format,
+    bool ShowSecrets,
+    bool MaskSensitive,
+    string[] IgnorePatterns,
+    FileInfo? SensitivePatternsFile,
+    FailOn FailOn,
+    FileInfo? SchemaFile,
+    int? MaxDepth,
+    string? PathPrefix,
+    bool NoColor,
+    bool Verbose,
+    bool IsDirMode,
+    bool IsHelpRequested);
+
+internal static class ArgsParser
 {
-    private const int ExitSuccess = 0;
-    private const int ExitDifferencesFound = 1;
-    private const int ExitError = 2;
     private const string StdinSentinel = "-";
     private const string DirOptionName = "--dir";
     private const string EnvsOptionName = "--envs";
     private const string FailOnOptionName = "--fail-on";
-    private const string DefaultFormat = "console";
-    private static readonly string[] SupportedExtensions = [".json", ".yaml", ".yml", ".env"];
 
-    /// <summary>
-    /// Runs the CLI.
-    ///
-    /// Exit codes:
-    /// <see cref="ExitSuccess"/> - Success: No differences or violations found
-    /// <see cref="ExitDifferencesFound"/> - Failure: Differences or violations found according to <see cref="FailOnOptionName"/>
-    /// <see cref="ExitError"/> - Error: Bad arguments, missing files, or other errors
-    /// </summary>
-    /// <param name="args">Raw command-line arguments.</param>
-    public static async Task<int> Main(string[] args)
+    public static bool TryParse(string[] args, out ParsedArgs parsedArgs, out string? error)
     {
-        try
+        parsedArgs = null!;
+        error = null;
+
+        if (args.Length == 0 || (args.Length == 1 && (args[0] == "--help" || args[0] == "-h")))
         {
-            Console.OutputEncoding = System.Text.Encoding.UTF8;
-        }
-        catch (IOException)
-        {
-            // Ignore if output is redirected to a file or pipe where setting encoding is not allowed.
+            parsedArgs = new ParsedArgs(null, null, null, null, null, false, false, [], null, FailOn.None, null, null, null, false, false, false, true);
+            return true;
         }
 
         var baseArgument = new Argument<FileInfo>("base", $"The base JSON/YAML file (use {StdinSentinel} to read from stdin)").ExistingOnly();
@@ -82,7 +84,6 @@ public static class Program
             Description = "Compare configuration files (JSON/YAML) and detect differences"
         };
 
-        // Mode 1: <base> <target>
         var diffCommand = new Command("diff", "Compare two configuration files")
         {
             Description = "Compare base and target configuration files"
@@ -101,7 +102,6 @@ public static class Program
         diffCommand.AddOption(noColorOption);
         diffCommand.AddOption(verboseOption);
 
-        // Mode 2: --dir --envs
         var dirCommand = new Command("dir", "Compare configuration files in a directory")
         {
             Description = "Compare configuration files across multiple environments in a directory"
@@ -123,7 +123,6 @@ public static class Program
         rootCommand.AddCommand(diffCommand);
         rootCommand.AddCommand(dirCommand);
 
-        // The bare invocation `appsettings-diff <base> <target>` behaves like `diff`.
         rootCommand.AddArgument(baseArgument);
         rootCommand.AddArgument(targetArgument);
         rootCommand.AddOption(formatOption);
@@ -138,41 +137,119 @@ public static class Program
         rootCommand.AddOption(noColorOption);
         rootCommand.AddOption(verboseOption);
 
-        rootCommand.SetHandler((InvocationContext context) =>
+        try
         {
-            if (args.Length == 0 || (args.Length == 1 && (args[0] == "--help" || args[0] == "-h")))
-            {
-                ShowHelp(rootCommand);
-                context.ExitCode = ExitSuccess;
-                return;
-            }
-            HandleDiff(context);
-        });
+            var parseResult = rootCommand.Parse(args);
 
-        void HandleDiff(InvocationContext context)
+            var baseFile = parseResult.GetValueForArgument(baseArgument);
+            var targetFile = parseResult.GetValueForArgument(targetArgument);
+            var dir = parseResult.GetValueForOption(dirOption);
+            var envs = parseResult.GetValueForOption(envsOption);
+            var format = parseResult.GetValueForOption(formatOption);
+            var showSecrets = parseResult.GetValueForOption(showSecretsOption);
+            var maskSensitive = parseResult.GetValueForOption(maskSensitiveOption);
+            var ignorePatterns = parseResult.GetValueForOption(ignoreOption) ?? [];
+            var sensitivePatternsFile = parseResult.GetValueForOption(sensitivePatternsOption);
+            var failOn = parseResult.GetValueForOption(failOnOption);
+            var schemaFile = parseResult.GetValueForOption(schemaOption);
+            var maxDepth = parseResult.GetValueForOption(maxDepthOption);
+            var pathPrefix = parseResult.GetValueForOption(pathOption);
+            var noColor = parseResult.GetValueForOption(noColorOption);
+            var verbose = parseResult.GetValueForOption(verboseOption);
+
+            var isDirMode = parseResult.CommandResult.Command == dirCommand || dir != null;
+
+            parsedArgs = new ParsedArgs(
+                baseFile, targetFile, dir, envs, format, showSecrets, maskSensitive,
+                ignorePatterns, sensitivePatternsFile, failOn, schemaFile, maxDepth,
+                pathPrefix, noColor, verbose, isDirMode, false);
+            return true;
+        }
+        catch (Exception ex)
         {
-            var baseFile = context.ParseResult.GetValueForArgument(baseArgument);
-            var targetFile = context.ParseResult.GetValueForArgument(targetArgument);
-            var options = ReadOutputOptions(context);
+            error = ex.Message;
+            return false;
+        }
+    }
+}
 
-            context.ExitCode = Execute(context, () => RunFileDiff(baseFile, targetFile, options));
+/// <summary>
+/// Command-line entry point for the appsettings diff tool.
+/// </summary>
+public static class Program
+{
+    private const int ExitSuccess = 0;
+    private const int ExitDifferencesFound = 1;
+    private const int ExitError = 2;
+    private const string DefaultFormat = "console";
+    private static readonly string[] SupportedExtensions = [".json", ".yaml", ".yml", ".env"];
+
+    /// <summary>
+    /// Runs the CLI.
+    ///
+    /// Exit codes:
+    /// <see cref="ExitSuccess"/> - Success: No differences or violations found
+    /// <see cref="ExitDifferencesFound"/> - Failure: Differences or violations found according to --fail-on
+    /// <see cref="ExitError"/> - Error: Bad arguments, missing files, or other errors
+    /// </summary>
+    /// <param name="args">Raw command-line arguments.</param>
+    public static async Task<int> Main(string[] args)
+    {
+        try
+        {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+        }
+        catch (IOException)
+        {
+            // Ignore if output is redirected to a file or pipe where setting encoding is not allowed.
         }
 
-        OutputOptions ReadOutputOptions(InvocationContext context) => new(
-            Format: context.ParseResult.GetValueForOption(formatOption),
-            ShowSecrets: context.ParseResult.GetValueForOption(showSecretsOption),
-            MaskSensitive: context.ParseResult.GetValueForOption(maskSensitiveOption),
-            IgnorePatterns: context.ParseResult.GetValueForOption(ignoreOption) ?? [],
-            SensitivePatternsFile: context.ParseResult.GetValueForOption(sensitivePatternsOption),
-            FailOn: context.ParseResult.GetValueForOption(failOnOption),
-            SchemaFile: context.ParseResult.GetValueForOption(schemaOption),
-            MaxDepth: context.ParseResult.GetValueForOption(maxDepthOption),
-            PathPrefix: context.ParseResult.GetValueForOption(pathOption),
-            NoColor: context.ParseResult.GetValueForOption(noColorOption),
-            Verbose: context.ParseResult.GetValueForOption(verboseOption));
+        if (ArgsParser.TryParse(args, out var parsedArgs, out var error))
+        {
+            if (parsedArgs.IsHelpRequested)
+            {
+                ShowHelp(new RootCommand("Appsettings Diff Tool") { Description = "Compare configuration files (JSON/YAML) and detect differences" });
+                return ExitSuccess;
+            }
 
-        return await rootCommand.InvokeAsync(args);
+            if (parsedArgs.IsDirMode)
+            {
+                if (parsedArgs.Dir == null)
+                {
+                    Console.Error.WriteLine("Error: --dir option is required for directory mode.");
+                    return ExitError;
+                }
+                return RunDirectoryDiff(parsedArgs.Dir, parsedArgs.Envs, ToOutputOptions(parsedArgs));
+            }
+            else
+            {
+                if (parsedArgs.BaseFile == null || parsedArgs.TargetFile == null)
+                {
+                    Console.Error.WriteLine("Error: Base and target files are required.");
+                    return ExitError;
+                }
+                return RunFileDiff(parsedArgs.BaseFile, parsedArgs.TargetFile, ToOutputOptions(parsedArgs));
+            }
+        }
+        else
+        {
+            Console.Error.WriteLine($"Error: {error}");
+            return ExitError;
+        }
     }
+
+    private static OutputOptions ToOutputOptions(ParsedArgs args) => new(
+        Format: args.Format,
+        ShowSecrets: args.ShowSecrets,
+        MaskSensitive: args.MaskSensitive,
+        IgnorePatterns: args.IgnorePatterns,
+        SensitivePatternsFile: args.SensitivePatternsFile,
+        FailOn: args.FailOn,
+        SchemaFile: args.SchemaFile,
+        MaxDepth: args.MaxDepth,
+        PathPrefix: args.PathPrefix,
+        NoColor: args.NoColor,
+        Verbose: args.Verbose);
 
     /// <summary>
     /// Writes help information to the console.
@@ -188,11 +265,11 @@ public static class Program
         console.WriteLine("USAGE:");
         console.WriteLine("  appsettings-diff [OPTIONS] <base> <target>");
         console.WriteLine("  appsettings-diff diff [OPTIONS] <base> <target>");
-        console.WriteLine($"  appsettings-diff dir [OPTIONS] {DirOptionName} <DIRECTORY> {EnvsOptionName} <ENV1,ENV2,...>");
+        console.WriteLine("  appsettings-diff dir [OPTIONS] --dir <DIRECTORY> --envs <ENV1,ENV2,...>");
         console.WriteLine();
         console.WriteLine("EXIT CODES:");
         console.WriteLine($"  {ExitSuccess}  Success: No differences or violations found");
-        console.WriteLine($"  {ExitDifferencesFound}  Failure: Differences or violations found according to {FailOnOptionName}");
+        console.WriteLine($"  {ExitDifferencesFound}  Failure: Differences or violations found according to --fail-on");
         console.WriteLine($"  {ExitError}  Error: Bad arguments, missing files, or other errors");
         console.WriteLine();
         console.WriteLine("OPTIONS:");
