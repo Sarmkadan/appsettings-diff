@@ -193,7 +193,7 @@ public static class Program
     /// <see cref="ExitError"/> - Error: Bad arguments, missing files, or other errors
     /// </summary>
     /// <param name="args">Raw command-line arguments.</param>
-    public static async Task<int> Main(string[] args)
+    public static int Main(string[] args)
     {
         try
         {
