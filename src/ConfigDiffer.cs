@@ -8,7 +8,7 @@ namespace AppsettingsDiff;
 /// <summary>
 /// Options for configuring the diff operation.
 /// </summary>
-public record ConfigDiffOptions
+public class ConfigDiffOptions : IEquatable<ConfigDiffOptions>
 {
     /// <summary>
     /// Gets a value indicating whether to compare arrays by value-set (unordered) instead of by index.
@@ -44,6 +44,73 @@ public record ConfigDiffOptions
     /// </summary>
     public ConfigDiffOptions()
     {
+    }
+
+    /// <summary>
+    /// Indicates whether the current object is equal to another object of the same type.
+    /// </summary>
+    /// <param name="other">An object to compare with this object.</param>
+    /// <returns><see langword="true"/> if the current object is equal to the <paramref name="other"/> parameter; otherwise, <see langword="false"/>.</returns>
+    public bool Equals(ConfigDiffOptions? other)
+    {
+        if (other is null)
+            return false;
+
+        return UnorderedArrays == other.UnorderedArrays
+            && MaxDepth == other.MaxDepth
+            && PathPrefix == other.PathPrefix
+            && CaseSensitiveKeys == other.CaseSensitiveKeys
+            && IgnorePaths == other.IgnorePaths;
+    }
+
+    /// <summary>
+    /// Determines whether the specified object is equal to the current object.
+    /// </summary>
+    /// <param name="obj">The object to compare with the current object.</param>
+    /// <returns><see langword="true"/> if the specified object  is equal to the current object; otherwise, <see langword="false"/>.</returns>
+    public override bool Equals(object? obj)
+    {
+        if (obj is null)
+            return false;
+
+        if (obj.GetType() != GetType())
+            return false;
+
+        return Equals((ConfigDiffOptions)obj);
+    }
+
+    /// <summary>
+    /// Serves as the default hash function.
+    /// </summary>
+    /// <returns>A hash code for the current object.</returns>
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(UnorderedArrays, MaxDepth, PathPrefix, CaseSensitiveKeys, IgnorePaths);
+    }
+
+    /// <summary>
+    /// Returns a value that indicates whether the values of two <see cref="ConfigDiffOptions"/> objects are equal.
+    /// </summary>
+    /// <param name="left">The first value to compare.</param>
+    /// <param name="right">The second value to compare.</param>
+    /// <returns><see langword="true"/> if the <paramref name="left"/> and <paramref name="right"/> parameters are equal; otherwise, <see langword="false"/>.</returns>
+    public static bool operator ==(ConfigDiffOptions? left, ConfigDiffOptions? right)
+    {
+        if (left is null)
+            return right is null;
+
+        return left.Equals(right);
+    }
+
+    /// <summary>
+    /// Returns a value that indicates whether the values of two <see cref="ConfigDiffOptions"/> objects are not equal.
+    /// </summary>
+    /// <param name="left">The first value to compare.</param>
+    /// <param name="right">The second value to compare.</param>
+    /// <returns><see langword="true"/> if the <paramref name="left"/> and <paramref name="right"/> parameters are not equal; otherwise, <see langword="false"/>.</returns>
+    public static bool operator !=(ConfigDiffOptions? left, ConfigDiffOptions? right)
+    {
+        return !(left == right);
     }
 }
 
