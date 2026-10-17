@@ -23,7 +23,10 @@ public static class EnvVarOverlay
     /// A dictionary containing the matching environment variables (key/value pairs) with
     /// case‑insensitive keys.
     /// </returns>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="prefix"/> is <c>null</c> or empty.</exception>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="prefix"/> is <c>null</c> or empty, consists only of whitespace,
+    /// or contains whitespace or ':'.
+    /// </exception>
     /// <example>
     /// <code>
     /// var vars = EnvVarOverlay.ReadFromEnvironment("MYAPP_");
@@ -36,6 +39,7 @@ public static class EnvVarOverlay
     public static Dictionary<string, string> ReadFromEnvironment(string? prefix = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(prefix);
+        ValidatePrefix(prefix);
 
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -201,6 +205,10 @@ public static class EnvVarOverlay
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="config"/> or <paramref name="envVars"/> is <c>null</c>.
     /// </exception>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="prefix"/> is non-empty and consists only of whitespace,
+    /// or contains whitespace or ':'.
+    /// </exception>
     /// <exception cref="EnvVarOverlayException">Thrown when a key contains invalid characters, bad path separators, or malformed array indices.</exception>
     /// <example>
     /// <code>
@@ -214,6 +222,7 @@ public static class EnvVarOverlay
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(envVars);
+        ValidatePrefix(prefix);
 
         // Filter and strip the custom prefix (if any)
         var prefixed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -267,6 +276,38 @@ public static class EnvVarOverlay
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Validates a custom prefix. <c>null</c> and empty prefixes mean "no prefix" and are accepted;
+    /// any other value must not be whitespace-only and must not contain whitespace or ':'.
+    /// </summary>
+    /// <param name="prefix">The prefix to validate.</param>
+    /// <exception cref="ArgumentException">Thrown when the prefix is whitespace-only or contains whitespace or ':'.</exception>
+    private static void ValidatePrefix(string? prefix)
+    {
+        if (string.IsNullOrEmpty(prefix))
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(prefix))
+        {
+            throw new ArgumentException("Prefix must not consist only of whitespace.", nameof(prefix));
+        }
+
+        foreach (char c in prefix)
+        {
+            if (char.IsWhiteSpace(c))
+            {
+                throw new ArgumentException($"Prefix '{prefix}' must not contain whitespace.", nameof(prefix));
+            }
+
+            if (c == ':')
+            {
+                throw new ArgumentException($"Prefix '{prefix}' must not contain ':'.", nameof(prefix));
+            }
+        }
     }
 
     /// <summary>
