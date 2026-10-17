@@ -128,5 +128,117 @@ namespace AppsettingsDiff
                     File.Delete(tempFile);
             }
         }
+
+        /// <summary>
+        /// Prefixes that are not valid: whitespace-only, containing whitespace, or containing ':'.
+        /// </summary>
+        public static IEnumerable<object[]> InvalidPrefixes => new List<object[]>
+        {
+            new object[] { " " },
+            new object[] { "\t" },
+            new object[] { "APP " },
+            new object[] { " APP" },
+            new object[] { "AP P" },
+            new object[] { "APP\t" },
+            new object[] { "APP:" },
+            new object[] { "A:B" },
+        };
+
+        [Theory]
+        [MemberData(nameof(InvalidPrefixes))]
+        public void ReadFromEnvironment_InvalidPrefix_ThrowsArgumentExceptionNamingPrefix(string prefix)
+        {
+            var ex = Assert.Throws<ArgumentException>(() => EnvVarOverlay.ReadFromEnvironment(prefix));
+
+            Assert.Equal("prefix", ex.ParamName);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        public void ReadFromEnvironment_NullOrEmptyPrefix_ThrowsArgumentException(string? prefix)
+        {
+            var ex = Assert.ThrowsAny<ArgumentException>(() => EnvVarOverlay.ReadFromEnvironment(prefix));
+
+            Assert.Equal("prefix", ex.ParamName);
+        }
+
+        [Theory]
+        [MemberData(nameof(InvalidPrefixes))]
+        public void Apply_InvalidPrefix_ThrowsArgumentExceptionNamingPrefix(string prefix)
+        {
+            var config = new Dictionary<string, string>();
+            var envVars = new Dictionary<string, string> { ["APP_Key"] = "value" };
+
+            var ex = Assert.Throws<ArgumentException>(() => EnvVarOverlay.Apply(config, envVars, prefix, out _));
+
+            Assert.Equal("prefix", ex.ParamName);
+        }
+
+        [Fact]
+        public void Apply_NullConfig_ThrowsArgumentNullExceptionNamingConfig()
+        {
+            var envVars = new Dictionary<string, string>();
+
+            var ex = Assert.Throws<ArgumentNullException>(() => EnvVarOverlay.Apply(null!, envVars, "APP_", out _));
+
+            Assert.Equal("config", ex.ParamName);
+        }
+
+        [Fact]
+        public void Apply_NullEnvVars_ThrowsArgumentNullExceptionNamingEnvVars()
+        {
+            var config = new Dictionary<string, string>();
+
+            var ex = Assert.Throws<ArgumentNullException>(() => EnvVarOverlay.Apply(config, null!, "APP_", out _));
+
+            Assert.Equal("envVars", ex.ParamName);
+        }
+
+        [Fact]
+        public void Apply_NullEnvVarsWithoutPrefix_ThrowsArgumentNullExceptionNamingEnvVars()
+        {
+            var config = new Dictionary<string, string>();
+
+            var ex = Assert.Throws<ArgumentNullException>(() => EnvVarOverlay.Apply(config, null!, out _));
+
+            Assert.Equal("envVars", ex.ParamName);
+        }
+
+        [Fact]
+        public void Apply_PrefixAPP_StripsPrefixAndTranslatesSectionSeparator()
+        {
+            var config = new Dictionary<string, string>
+            {
+                ["ConnectionStrings:Default"] = "original"
+            };
+            var envVars = new Dictionary<string, string>
+            {
+                ["APP_ConnectionStrings__Default"] = "from-env",
+                ["APP_NewSection__Key"] = "added",
+                ["OTHER_ConnectionStrings__Default"] = "ignored"
+            };
+
+            var result = EnvVarOverlay.Apply(config, envVars, "APP_", out var overridden);
+
+            Assert.Equal("from-env", result["ConnectionStrings:Default"]);
+            Assert.Equal("added", result["NewSection:Key"]);
+            Assert.DoesNotContain("APP_ConnectionStrings:Default", result.Keys);
+            Assert.DoesNotContain("OTHER_ConnectionStrings:Default", result.Keys);
+            Assert.Equal(new[] { "ConnectionStrings:Default" }, overridden);
+        }
+
+        [Fact]
+        public void Apply_NullOrEmptyPrefix_DoesNotFilterOrStrip()
+        {
+            var config = new Dictionary<string, string>();
+            var envVars = new Dictionary<string, string> { ["Plain__Key"] = "value" };
+
+            var nullPrefixResult = EnvVarOverlay.Apply(config, envVars, null, out _);
+            var emptyPrefixResult = EnvVarOverlay.Apply(config, envVars, "", out _);
+
+            Assert.Equal("value", nullPrefixResult["Plain:Key"]);
+            Assert.Equal("value", emptyPrefixResult["Plain:Key"]);
+        }
     }
 }
