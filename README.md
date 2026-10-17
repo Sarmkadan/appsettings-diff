@@ -167,3 +167,88 @@ var options = new ConfigDifferOptions
 var differ = new ConfigDiffer(options);
 var result = differ.Compare(configA, configB);
 ```
+
+## Generating an HTML report
+
+`HtmlDiffReportWriter` writes a self-contained HTML file (inline CSS, no external assets). The example below is a complete program that:
+
+1. loads a baseline and a target `appsettings` file with `JsonConfigReader`,
+2. optionally overlays `APPSETTINGS_`-prefixed environment variables onto the target with `EnvVarOverlay`,
+3. runs `ConfigDiffer` with a `SensitiveKeyDetector`, which flags sensitive entries,
+4. writes `diff-report.html` with `HtmlDiffReportWriter` in masking mode.
+
+Create the project as shown in [Installation](#installation), replace `Program.cs` with the code below, and put the sample `appsettings.json` and `appsettings.Production.json` from [Sample input](#sample-input) next to it.
+
+```csharp
+using System.Collections;
+using System.Text;
+using AppsettingsDiff;
+
+var baselinePath = "appsettings.json";
+var targetPath = "appsettings.Production.json";
+
+var reader = new JsonConfigReader();
+
+var baseline = new FlatConfig();
+foreach (var (key, value) in reader.ReadJsonConfig(baselinePath))
+    baseline.Values[key] = value;
+
+var targetValues = reader.ReadJsonConfig(targetPath);
+
+// Optional: overlay environment variables prefixed with APPSETTINGS_ onto the target side.
+// EnvVarOverlay turns "__" into ":", but JsonConfigReader flattens keys with ".", so map "__" to "." first.
+var envVars = Environment.GetEnvironmentVariables()
+    .Cast<DictionaryEntry>()
+    .ToDictionary(
+        e => ((string)e.Key).Replace("__", ".", StringComparison.Ordinal),
+        e => (string?)e.Value ?? string.Empty);
+targetValues = EnvVarOverlay.Apply(targetValues, envVars, "APPSETTINGS_", out var overriddenKeys);
+
+var target = new FlatConfig();
+foreach (var (key, value) in targetValues)
+    target.Values[key] = value;
+
+// The same detector drives both the diff (which flags sensitive entries) and the HTML writer.
+var detector = new SensitiveKeyDetector();
+var differ = new ConfigDiffer(detector);
+var result = differ.Diff(baseline, target, basePath: baselinePath, targetPath: targetPath);
+
+var writer = new HtmlDiffReportWriter(detector, showSecrets: false, maskSensitive: true);
+using (var file = new StreamWriter("diff-report.html", append: false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
+{
+    writer.WriteHtml(result, file);
+}
+
+Console.WriteLine($"Wrote diff-report.html: {result.CountOf(DiffKind.Added)} added, " +
+                  $"{result.CountOf(DiffKind.Removed)} removed, {result.CountOf(DiffKind.Changed)} changed.");
+if (overriddenKeys.Count > 0)
+    Console.WriteLine($"Environment overrides applied: {string.Join(", ", overriddenKeys)}");
+```
+
+Run it, optionally with an override such as `APPSETTINGS_Features__Beta=false`:
+
+```bash
+dotnet run
+APPSETTINGS_Features__Beta=false dotnet run
+```
+
+### What the report shows
+
+- **Summary:** counts of Added, Removed, Changed, and TypeChanged entries.
+- **Details table:** one row per differing key, with the key, the change kind, and the old and new values. Rows are colour-coded: Added is green, Removed is red, Changed is yellow, and TypeChanged is purple.
+- **Masked secrets:** values under sensitive keys (for example `ConnectionStrings.Default` or anything matching a password or token pattern) are shown as `***`. `maskSensitive: true` selects `***`; leaving it `false` shows `[REDACTED]` instead. Pass `showSecrets: true` only when the report stays on a trusted machine.
+
+With the sample input, `ConnectionStrings.Default` appears as `*** → ***`, and the other values are shown in plain text.
+
+### Notes
+
+- `HtmlDiffReportWriter` decides masking from `DiffEntry.IsSensitive`, which `ConfigDiffer` sets from its detector. The writer's own detector argument is not consulted when rendering HTML. Pass the same detector to both so the flags and the writer's configuration stay consistent.
+- `EnvVarOverlay` keeps `__` as `:`, while `JsonConfigReader` flattens keys with `.`. Map `__` to `.` before overlaying, as the example does. Otherwise an override creates a new `Features:Beta` key instead of replacing `Features.Beta`.
+
+### CLI equivalent
+
+The project also ships a CLI with an `html` format. It writes to standard output, so redirect it to a file:
+
+```bash
+dotnet run -- diff appsettings.json appsettings.Production.json --format html --mask-sensitive > diff-report.html
+```
