@@ -10,10 +10,21 @@
     <PackageId>AppsettingsDiff</PackageId>
     <Version>0.1.0</Version>
     <Authors>Vladyslav Zaiets</Authors>
-    <Description>Diffs appsettings across environments and finds keys missing between them.</Description>
+    <Description>Diffs .NET appsettings JSON files across environments, with environment-variable overlay, secret masking and HTML reports. Reports missing, changed and type-changed keys.</Description>
+    <PackageTags>appsettings;configuration;diff;dotnet;devops;json</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/Sarmkadan/appsettings-diff</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Sarmkadan/appsettings-diff.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>appsettings-diff</ToolCommandName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
