@@ -1,6 +1,6 @@
 ## Getting Started
 
-AppsettingsDiff is an executable project (`appsettings-diff.csproj`, assembly `AppsettingsDiff`, target `net10.0`). It is not packaged as a .NET tool (no `PackAsTool`), so `dotnet tool install` does not apply. To use it from your own code, clone this repository and add a project reference.
+AppsettingsDiff is an executable project (`appsettings-diff.csproj`, assembly `AppsettingsDiff`, target `net10.0`), packed as a .NET tool with the command name `appsettings-diff`. To use it from your own code, clone this repository and add a project reference.
 
 ### Installation
 
