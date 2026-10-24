@@ -21,4 +21,7 @@ public static class Messages
     public const string InsufficientEnvironments = "At least two environments must be specified via --envs (e.g. --envs Production,Staging).";
     public static string FileNotFound(string environment, string dir) => $"No appsettings.{environment}.(json|yaml|yml) file found in '{dir}'.";
     public const string SchemaViolationsHeader = "SCHEMA VIOLATIONS:";
+    /// <summary>Formats the one-line summary printed by <c>--stats</c>.</summary>
+    public static string DiffStats(int added, int removed, int changed, int unchanged) =>
+        $"{added} added, {removed} removed, {changed} changed, {unchanged} unchanged";
 }

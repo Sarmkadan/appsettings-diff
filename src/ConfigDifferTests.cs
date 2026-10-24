@@ -39,4 +39,30 @@ public class ConfigDifferTests
 
         Assert.False(result.HasDifferences, "Should not report differences for 'True' vs 'true' even with CaseSensitiveKeys=true");
     }
+
+    [Fact]
+    public void Diff_ShouldCountUnchangedKeys_ExcludingChangedRemovedAndIgnored()
+    {
+        var detector = new SensitiveKeyDetector();
+        var differ = new ConfigDiffer(detector);
+
+        var baseline = new FlatConfig();
+        baseline.Values["Same"] = "1";
+        baseline.Values["Changed"] = "a";
+        baseline.Values["Removed"] = "x";
+        baseline.Values["Ignored"] = "old";
+
+        var target = new FlatConfig();
+        target.Values["Same"] = "1";
+        target.Values["Changed"] = "b";
+        target.Values["Ignored"] = "new";
+        target.Values["Added"] = "y";
+
+        var result = differ.Diff(baseline, target, ignoreKeys: ["Ignored"]);
+
+        Assert.Equal(1, result.UnchangedCount);
+        Assert.Equal(1, result.CountOf(DiffKind.Added));
+        Assert.Equal(1, result.CountOf(DiffKind.Removed));
+        Assert.Equal(1, result.CountOf(DiffKind.Changed));
+    }
 }
