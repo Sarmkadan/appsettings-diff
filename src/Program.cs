@@ -40,6 +40,7 @@ public sealed record ParsedArgs(
     string? PathPrefix,
     bool NoColor,
     bool Verbose,
+    bool Stats,
     bool IsDirMode,
     bool IsHelpRequested);
 
@@ -57,7 +58,7 @@ internal static class ArgsParser
 
         if (args.Length == 0 || (args.Length == 1 && (args[0] == "--help" || args[0] == "-h")))
         {
-            parsedArgs = new ParsedArgs(null, null, null, null, null, false, false, [], null, FailOn.None, null, null, null, false, false, false, true);
+            parsedArgs = new ParsedArgs(null, null, null, null, null, false, false, [], null, FailOn.None, null, null, null, false, false, false, false, true);
             return true;
         }
 
@@ -78,6 +79,7 @@ internal static class ArgsParser
         var pathOption = new Option<string?>("--path", "Only compare keys under the given key-path prefix (e.g. Logging:LogLevel)");
         var noColorOption = new Option<bool>("--no-color", "Disable ANSI color output");
         var verboseOption = new Option<bool>("--verbose", "Write diagnostic information to standard error");
+        var statsOption = new Option<bool>("--stats", "Print a summary of added, removed, changed and unchanged keys after the diff");
 
         var rootCommand = new RootCommand("Appsettings Diff Tool")
         {
@@ -101,6 +103,7 @@ internal static class ArgsParser
         diffCommand.AddOption(pathOption);
         diffCommand.AddOption(noColorOption);
         diffCommand.AddOption(verboseOption);
+        diffCommand.AddOption(statsOption);
 
         var dirCommand = new Command("dir", "Compare configuration files in a directory")
         {
@@ -119,6 +122,7 @@ internal static class ArgsParser
         dirCommand.AddOption(pathOption);
         dirCommand.AddOption(noColorOption);
         dirCommand.AddOption(verboseOption);
+        dirCommand.AddOption(statsOption);
 
         rootCommand.AddCommand(diffCommand);
         rootCommand.AddCommand(dirCommand);
@@ -136,6 +140,7 @@ internal static class ArgsParser
         rootCommand.AddOption(pathOption);
         rootCommand.AddOption(noColorOption);
         rootCommand.AddOption(verboseOption);
+        rootCommand.AddOption(statsOption);
 
         try
         {
@@ -156,13 +161,14 @@ internal static class ArgsParser
             var pathPrefix = parseResult.GetValueForOption(pathOption);
             var noColor = parseResult.GetValueForOption(noColorOption);
             var verbose = parseResult.GetValueForOption(verboseOption);
+            var stats = parseResult.GetValueForOption(statsOption);
 
             var isDirMode = parseResult.CommandResult.Command == dirCommand || dir != null;
 
             parsedArgs = new ParsedArgs(
                 baseFile, targetFile, dir, envs, format, showSecrets, maskSensitive,
                 ignorePatterns, sensitivePatternsFile, failOn, schemaFile, maxDepth,
-                pathPrefix, noColor, verbose, isDirMode, false);
+                pathPrefix, noColor, verbose, stats, isDirMode, false);
             return true;
         }
         catch (Exception ex)
@@ -249,7 +255,8 @@ public static class Program
         MaxDepth: args.MaxDepth,
         PathPrefix: args.PathPrefix,
         NoColor: args.NoColor,
-        Verbose: args.Verbose);
+        Verbose: args.Verbose,
+        Stats: args.Stats);
 
     /// <summary>
     /// Writes help information to the console.
@@ -300,7 +307,7 @@ public static class Program
         }
     }
 
-    private sealed record OutputOptions(string? Format, bool ShowSecrets, bool MaskSensitive, string[] IgnorePatterns, FileInfo? SensitivePatternsFile, FailOn FailOn, FileInfo? SchemaFile, int? MaxDepth, string? PathPrefix, bool NoColor, bool Verbose);
+    private sealed record OutputOptions(string? Format, bool ShowSecrets, bool MaskSensitive, string[] IgnorePatterns, FileInfo? SensitivePatternsFile, FailOn FailOn, FileInfo? SchemaFile, int? MaxDepth, string? PathPrefix, bool NoColor, bool Verbose, bool Stats);
 
     /// <summary>
     /// Executes the specified action and handles expected exceptions by printing error messages to the error console.
@@ -366,6 +373,7 @@ public static class Program
         }
 
         WriteResult(result, schemaViolations, detector, options);
+        WriteStats(result, options);
 
         var exitCode = ShouldFail(result, schemaViolations, options.FailOn) ? ExitDifferencesFound : ExitSuccess;
         WriteFinalDiagnostic(options, result, exitCode);
@@ -458,6 +466,7 @@ public static class Program
             }
 
             WriteResult(result, schemaViolations, detector, options);
+            WriteStats(result, options);
             var comparisonExitCode = ShouldFail(result, schemaViolations, options.FailOn) ? ExitDifferencesFound : ExitSuccess;
             totalAdded += result.CountOf(DiffKind.Added);
             totalRemoved += result.CountOf(DiffKind.Removed);
@@ -472,6 +481,27 @@ public static class Program
         WriteDiagnostic(options, "result", ("added", totalAdded), ("removed", totalRemoved),
             ("changed", totalChanged), ("exitCode", exitCode));
         return exitCode;
+    }
+
+    /// <summary>
+    /// Writes a one-line count summary of the diff. Goes to standard output for the console format
+    /// and to standard error otherwise, so machine-readable reports on stdout stay parseable.
+    /// </summary>
+    /// <param name="result">The <see cref="DiffResult"/> to summarize.</param>
+    /// <param name="options">The <see cref="OutputOptions"/>.</param>
+    private static void WriteStats(DiffResult result, OutputOptions options)
+    {
+        if (!options.Stats)
+            return;
+
+        var changed = result.CountOf(DiffKind.Changed) + result.CountOf(DiffKind.TypeChanged);
+        var line = Messages.DiffStats(result.CountOf(DiffKind.Added), result.CountOf(DiffKind.Removed), changed, result.UnchangedCount);
+
+        var isConsole = string.IsNullOrWhiteSpace(options.Format) || options.Format == DefaultFormat;
+        if (isConsole)
+            Console.WriteLine(line);
+        else
+            Console.Error.WriteLine(line);
     }
 
     /// <summary>

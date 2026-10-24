@@ -280,6 +280,11 @@ public class DiffResult
     /// Gets the number of keys that were ignored due to the ignore patterns.
     /// </summary>
     public int IgnoredCount { get; set; }
+
+    /// <summary>
+    /// Gets the number of keys present in both configurations whose values are equal.
+    /// </summary>
+    public int UnchangedCount { get; set; }
 }
 
 /// <summary>
@@ -384,6 +389,7 @@ public class ConfigDiffer
         CancellationToken cancellationToken)
     {
         int ignoredCount = 0;
+        int unchangedCount = 0;
         foreach (var kvp in baseline.Values)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -394,13 +400,19 @@ public class ConfigDiffer
                 continue;
             }
 
-            CompareBaselineValue(key, kvp.Value, target, result, options);
+            if (CompareBaselineValue(key, kvp.Value, target, result, options))
+                unchangedCount++;
         }
 
+        result.UnchangedCount = unchangedCount;
         return ignoredCount;
     }
 
-    private void CompareBaselineValue(
+    /// <summary>
+    /// Compares a baseline value against the target, recording any difference in <paramref name="result"/>.
+    /// </summary>
+    /// <returns><c>true</c> if the key exists in both configurations with equal values; otherwise <c>false</c>.</returns>
+    private bool CompareBaselineValue(
         string key,
         string value,
         FlatConfig target,
@@ -410,18 +422,17 @@ public class ConfigDiffer
         if (!target.ContainsKey(key))
         {
             result.Entries.Add(CreateEntry(DiffKind.Removed, key, oldValue: value));
-            return;
+            return false;
         }
 
         string targetValue = target.GetValue(key);
         if (ExceedsMaxDepth(key, options.MaxDepth))
         {
-            if (!AreValuesEqualAsBlobs(value, targetValue))
-            {
-                result.Entries.Add(CreateEntry(DiffKind.Changed, key, value, targetValue));
-            }
+            if (AreValuesEqualAsBlobs(value, targetValue))
+                return true;
 
-            return;
+            result.Entries.Add(CreateEntry(DiffKind.Changed, key, value, targetValue));
+            return false;
         }
 
         if (HasDifferentTypes(value, targetValue))
@@ -436,11 +447,14 @@ public class ConfigDiffer
                 NewType = DetectJsonType(targetValue),
                 IsSensitive = _detector.IsSensitive(key)
             });
-            return;
+            return false;
         }
 
-        if (!AreValuesEqual(value, targetValue, options))
-            result.Entries.Add(CreateEntry(DiffKind.Changed, key, value, targetValue));
+        if (AreValuesEqual(value, targetValue, options))
+            return true;
+
+        result.Entries.Add(CreateEntry(DiffKind.Changed, key, value, targetValue));
+        return false;
     }
 
     private int CompareTargetKeys(
