@@ -210,6 +210,9 @@ public static class Program
             // Ignore if output is redirected to a file or pipe where setting encoding is not allowed.
         }
 
+        if (args.Length == 1 && args[0] == "--selftest")
+            return RunSelfTests();
+
         if (ArgsParser.TryParse(args, out var parsedArgs, out var error))
         {
             if (parsedArgs.IsHelpRequested)
@@ -273,6 +276,7 @@ public static class Program
         console.WriteLine("  appsettings-diff [OPTIONS] <base> <target>");
         console.WriteLine("  appsettings-diff diff [OPTIONS] <base> <target>");
         console.WriteLine("  appsettings-diff dir [OPTIONS] --dir <DIRECTORY> --envs <ENV1,ENV2,...>");
+        console.WriteLine("  appsettings-diff --selftest");
         console.WriteLine();
         console.WriteLine("EXIT CODES:");
         console.WriteLine($"  {ExitSuccess}  Success: No differences or violations found");
@@ -693,5 +697,292 @@ public static class Program
             config.Values[key] = value;
 
         return config;
+    }
+
+    /// <summary>
+    /// Runs the built-in self-checks for <see cref="ConfigDiffer"/>, <see cref="ThreeWayMerger"/> and
+    /// <see cref="PlaceholderDetector"/> against small in-memory configurations, printing PASS or FAIL per check.
+    /// </summary>
+    /// <returns><see cref="ExitSuccess"/> if every check passes; otherwise <see cref="ExitError"/>.</returns>
+    private static int RunSelfTests()
+    {
+        var checks = new (string Name, Action Body)[]
+        {
+            ("differ: identical configs report no differences", DifferIdenticalConfigsHaveNoDifferences),
+            ("differ: key only in target is Added", DifferKeyOnlyInTargetIsAdded),
+            ("differ: key only in base is Removed", DifferKeyOnlyInBaseIsRemoved),
+            ("differ: different string value is Changed", DifferChangedValueIsChanged),
+            ("differ: boolean case difference is not a change", DifferBooleanCaseIsNotAChange),
+            ("differ: string-to-number change is TypeChanged", DifferStringToNumberIsTypeChanged),
+            ("differ: wildcard ignore skips matching keys", DifferWildcardIgnoreSkipsMatchingKeys),
+            ("differ: path prefix limits comparison", DifferPathPrefixLimitsComparison),
+            ("merge: change made only on theirs side is taken", MergeOnlyTheirsChangedTakesTheirs),
+            ("merge: change made only on our side is taken", MergeOnlyOursChangedTakesOurs),
+            ("merge: conflicting edits are reported under Manual", MergeConflictIsReportedUnderManual),
+            ("merge: PreferTheirs auto-resolves conflicts", MergePreferTheirsAutoResolvesConflict),
+            ("merge: identical edits on both sides do not conflict", MergeIdenticalEditsDoNotConflict),
+            ("merge: deletion on one side removes key when other side is unchanged", MergeDeletionOnOneSideRemovesKey),
+            ("placeholder: common placeholder values are detected", PlaceholderCommonValuesAreDetected),
+            ("placeholder: real values are not flagged", PlaceholderRealValuesAreNotFlagged),
+            ("placeholder: scan reports only placeholder entries with reasons", PlaceholderScanReportsOnlyPlaceholders),
+            ("placeholder: extra pattern is matched and reported", PlaceholderExtraPatternIsMatched),
+            ("placeholder: duplicate and blank extra patterns are dropped", PlaceholderDropsDuplicateAndBlankPatterns)
+        };
+
+        var failed = 0;
+        foreach (var (name, body) in checks)
+        {
+            try
+            {
+                body();
+                Console.WriteLine($"PASS {name}");
+            }
+            catch (Exception ex)
+            {
+                failed++;
+                Console.WriteLine($"FAIL {name}: {ex.Message}");
+            }
+        }
+
+        Console.WriteLine();
+        Console.WriteLine($"{checks.Length - failed} of {checks.Length} checks passed.");
+        return failed == 0 ? ExitSuccess : ExitError;
+    }
+
+    private static void AssertTrue(bool condition, string message)
+    {
+        if (!condition)
+            throw new InvalidOperationException(message);
+    }
+
+    private static void AssertEqual<T>(T expected, T actual, string what)
+    {
+        if (!EqualityComparer<T>.Default.Equals(expected, actual))
+            throw new InvalidOperationException($"{what}: expected '{expected}' but got '{actual}'.");
+    }
+
+    private static DiffResult SelfTestDiff(
+        Dictionary<string, string> baseline,
+        Dictionary<string, string> target,
+        ConfigDiffOptions? options = null,
+        IEnumerable<string>? ignore = null)
+    {
+        var differ = new ConfigDiffer(new SensitiveKeyDetector());
+        return differ.Diff(ToFlatConfig(baseline), ToFlatConfig(target), ignore, "base", "target",
+            options ?? new ConfigDiffOptions { CaseSensitiveKeys = false });
+    }
+
+    private static void DifferIdenticalConfigsHaveNoDifferences()
+    {
+        var config = new Dictionary<string, string> { ["Logging:LogLevel:Default"] = "Information", ["AllowedHosts"] = "*" };
+        var result = SelfTestDiff(config, new Dictionary<string, string>(config));
+
+        AssertTrue(!result.HasDifferences, "expected no diff entries");
+        AssertEqual(2, result.UnchangedCount, "UnchangedCount");
+    }
+
+    private static void DifferKeyOnlyInTargetIsAdded()
+    {
+        var result = SelfTestDiff(
+            new Dictionary<string, string> { ["A"] = "1" },
+            new Dictionary<string, string> { ["A"] = "1", ["B"] = "two" });
+
+        AssertEqual(1, result.Entries.Count, "entry count");
+        AssertEqual(DiffKind.Added, result.Entries[0].Kind, "kind");
+        AssertEqual("B", result.Entries[0].Key, "key");
+        AssertEqual("two", result.Entries[0].NewValue, "NewValue");
+    }
+
+    private static void DifferKeyOnlyInBaseIsRemoved()
+    {
+        var result = SelfTestDiff(
+            new Dictionary<string, string> { ["A"] = "1", ["B"] = "x" },
+            new Dictionary<string, string> { ["A"] = "1" });
+
+        AssertEqual(1, result.Entries.Count, "entry count");
+        AssertEqual(DiffKind.Removed, result.Entries[0].Kind, "kind");
+        AssertEqual("B", result.Entries[0].Key, "key");
+        AssertEqual("x", result.Entries[0].OldValue, "OldValue");
+    }
+
+    private static void DifferChangedValueIsChanged()
+    {
+        var result = SelfTestDiff(
+            new Dictionary<string, string> { ["Mode"] = "Dev" },
+            new Dictionary<string, string> { ["Mode"] = "Prod" });
+
+        AssertEqual(1, result.CountOf(DiffKind.Changed), "Changed count");
+        AssertEqual("Dev", result.Entries[0].OldValue, "OldValue");
+        AssertEqual("Prod", result.Entries[0].NewValue, "NewValue");
+    }
+
+    private static void DifferBooleanCaseIsNotAChange()
+    {
+        var result = SelfTestDiff(
+            new Dictionary<string, string> { ["Feature:Enabled"] = "True" },
+            new Dictionary<string, string> { ["Feature:Enabled"] = "true" });
+
+        AssertTrue(!result.HasDifferences, "True and true should compare equal");
+    }
+
+    private static void DifferStringToNumberIsTypeChanged()
+    {
+        var result = SelfTestDiff(
+            new Dictionary<string, string> { ["Retries"] = "3" },
+            new Dictionary<string, string> { ["Retries"] = "three" });
+
+        AssertEqual(1, result.CountOf(DiffKind.TypeChanged), "TypeChanged count");
+        AssertEqual("number", result.Entries[0].OldType, "OldType");
+        AssertEqual("string", result.Entries[0].NewType, "NewType");
+    }
+
+    private static void DifferWildcardIgnoreSkipsMatchingKeys()
+    {
+        var result = SelfTestDiff(
+            new Dictionary<string, string> { ["Logging:LogLevel:Default"] = "Info", ["Logging:LogLevel:Microsoft"] = "Warn", ["Port"] = "80" },
+            new Dictionary<string, string> { ["Logging:LogLevel:Default"] = "Debug", ["Logging:LogLevel:Microsoft"] = "Error", ["Port"] = "8080" },
+            ignore: ["Logging:*"]);
+
+        AssertEqual(1, result.Entries.Count, "entry count");
+        AssertEqual("Port", result.Entries[0].Key, "remaining key");
+    }
+
+    private static void DifferPathPrefixLimitsComparison()
+    {
+        var result = SelfTestDiff(
+            new Dictionary<string, string> { ["Logging:Level"] = "Info", ["Port"] = "80" },
+            new Dictionary<string, string> { ["Logging:Level"] = "Warn", ["Port"] = "81" },
+            new ConfigDiffOptions { CaseSensitiveKeys = false, PathPrefix = "Logging:" });
+
+        AssertEqual(1, result.Entries.Count, "entry count");
+        AssertEqual("Logging:Level", result.Entries[0].Key, "key");
+    }
+
+    private static void MergeOnlyTheirsChangedTakesTheirs()
+    {
+        var result = ThreeWayMerger.Merge(
+            new Dictionary<string, string> { ["Timeout"] = "30" },
+            new Dictionary<string, string> { ["Timeout"] = "30" },
+            new Dictionary<string, string> { ["Timeout"] = "60" });
+
+        AssertEqual("60", result.Merged["Timeout"], "merged Timeout");
+        AssertTrue(!result.HasConflicts, "expected no conflicts");
+    }
+
+    private static void MergeOnlyOursChangedTakesOurs()
+    {
+        var result = ThreeWayMerger.Merge(
+            new Dictionary<string, string> { ["Timeout"] = "30" },
+            new Dictionary<string, string> { ["Timeout"] = "45" },
+            new Dictionary<string, string> { ["Timeout"] = "30" });
+
+        AssertEqual("45", result.Merged["Timeout"], "merged Timeout");
+        AssertTrue(!result.HasConflicts, "expected no conflicts");
+    }
+
+    private static void MergeConflictIsReportedUnderManual()
+    {
+        var result = ThreeWayMerger.Merge(
+            new Dictionary<string, string> { ["Db"] = "a" },
+            new Dictionary<string, string> { ["Db"] = "b" },
+            new Dictionary<string, string> { ["Db"] = "c" });
+
+        AssertTrue(result.HasConflicts, "expected a conflict");
+        AssertEqual(1, result.Conflicts.Count, "conflict count");
+        AssertEqual("a", result.Conflicts[0].BaseValue, "BaseValue");
+        AssertEqual("b", result.Conflicts[0].OurValue, "OurValue");
+        AssertEqual("c", result.Conflicts[0].TheirValue, "TheirValue");
+        AssertTrue(!result.Conflicts[0].AutoResolved, "Manual conflicts must not be auto-resolved");
+        AssertEqual("b", result.Merged["Db"], "Manual keeps our value");
+    }
+
+    private static void MergePreferTheirsAutoResolvesConflict()
+    {
+        var result = ThreeWayMerger.Merge(
+            new Dictionary<string, string> { ["Db"] = "a" },
+            new Dictionary<string, string> { ["Db"] = "b" },
+            new Dictionary<string, string> { ["Db"] = "c" },
+            ConflictResolutionStrategy.PreferTheirs);
+
+        AssertEqual("c", result.Merged["Db"], "merged Db");
+        AssertEqual(1, result.Conflicts.Count, "conflict count");
+        AssertTrue(result.Conflicts[0].AutoResolved, "expected AutoResolved");
+    }
+
+    private static void MergeIdenticalEditsDoNotConflict()
+    {
+        var result = ThreeWayMerger.Merge(
+            new Dictionary<string, string> { ["Name"] = "x" },
+            new Dictionary<string, string> { ["Name"] = "y" },
+            new Dictionary<string, string> { ["Name"] = "y" });
+
+        AssertTrue(!result.HasConflicts, "same edit on both sides should not conflict");
+        AssertEqual("y", result.Merged["Name"], "merged Name");
+    }
+
+    private static void MergeDeletionOnOneSideRemovesKey()
+    {
+        var result = ThreeWayMerger.Merge(
+            new Dictionary<string, string> { ["Keep"] = "1", ["Temp"] = "t" },
+            new Dictionary<string, string> { ["Keep"] = "1" },
+            new Dictionary<string, string> { ["Keep"] = "1", ["Temp"] = "t" });
+
+        AssertTrue(!result.Merged.ContainsKey("Temp"), "deleted key should be absent from merged output");
+        AssertEqual("1", result.Merged["Keep"], "merged Keep");
+        AssertTrue(!result.HasConflicts, "expected no conflicts");
+    }
+
+    private static void PlaceholderCommonValuesAreDetected()
+    {
+        string[] placeholders = ["TODO: set password", "changeme", "your-api-key", "<connection-string>", "", "localhost"];
+        foreach (var value in placeholders)
+            AssertTrue(PlaceholderDetector.LooksLikePlaceholder(value), $"'{value}' should look like a placeholder");
+    }
+
+    private static void PlaceholderRealValuesAreNotFlagged()
+    {
+        string[] realValues = ["Server=db.internal;Database=app", "https://api.example.com", "42"];
+        foreach (var value in realValues)
+            AssertTrue(!PlaceholderDetector.LooksLikePlaceholder(value), $"'{value}' should not look like a placeholder");
+    }
+
+    private static void PlaceholderScanReportsOnlyPlaceholders()
+    {
+        var detector = new PlaceholderDetector();
+        var findings = detector.Scan(new Dictionary<string, string>
+        {
+            ["Db:Password"] = "changeme",
+            ["Db:Host"] = "db.internal",
+            ["Api:Key"] = "<api-key>",
+            ["Mail:From"] = "noreply@example.com"
+        });
+
+        AssertEqual(2, findings.Count, "finding count");
+        var password = findings.FirstOrDefault(f => f.Key == "Db:Password");
+        AssertTrue(password is not null, "Db:Password should be flagged");
+        AssertEqual("Contains changeme marker", password!.Reason, "Db:Password reason");
+        AssertTrue(findings.Any(f => f.Key == "Api:Key"), "Api:Key should be flagged");
+    }
+
+    private static void PlaceholderExtraPatternIsMatched()
+    {
+        var detector = new PlaceholderDetector(["corp.example"]);
+        var findings = detector.Scan(new Dictionary<string, string>
+        {
+            ["Endpoint"] = "https://api.corp.example/v1",
+            ["Name"] = "billing"
+        });
+
+        AssertEqual(1, findings.Count, "finding count");
+        AssertEqual("Endpoint", findings[0].Key, "key");
+        AssertEqual("Matches custom pattern 'corp.example'", findings[0].Reason, "reason");
+    }
+
+    private static void PlaceholderDropsDuplicateAndBlankPatterns()
+    {
+        var detector = new PlaceholderDetector(["todo", "   ", "custom-marker", "custom-marker"]);
+
+        AssertEqual(6, detector.Patterns.Count, "pattern count");
+        AssertEqual("custom-marker", detector.Patterns[^1], "last pattern");
     }
 }
